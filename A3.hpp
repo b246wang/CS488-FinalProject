@@ -66,6 +66,9 @@ protected:
 
 	void initPerspectiveMatrix();
 	void initVar();
+	void initGrid();
+	void initFloor();
+	void initTexture();
 	void resetPosition();
 	void resetRotation();
 	void resetJoints();
@@ -74,6 +77,7 @@ protected:
 	void renderSceneGraph(const SceneNode &node);
 	void renderArcCircle();
 	void renderGrid();
+	void renderFloor();
 	void drawNodes(const SceneNode *node, glm::mat4 t);
 	void pickNode();
 	JointNode* bfsJoint(SceneNode * root, unsigned int id);
@@ -89,6 +93,9 @@ protected:
 	// Fields related to grid geometry.
 	GLuint m_grid_vao; // Vertex Array Object
 	GLuint m_grid_vbo; // Vertex Buffer Object
+	GLuint m_floor_vao; // Vertex Array Object
+	GLuint m_floor_vbo; // Vertex Buffer Object
+	GLuint floor_texture;
 
 	//-- GL resources for mesh geometry data:
 	GLuint m_vao_meshData;

@@ -19,8 +19,8 @@ if os.get() == "macosx" then
         "cs488-framework",
         "imgui",
         "glfw3",
-        "lua"
-
+        "lua",
+        "lodepng"
     }
 end
 
@@ -30,6 +30,7 @@ if os.get() == "linux" then
         "imgui",
         "glfw3",
         "lua",
+        "lodepng",
         "GL",
         "Xinerama",
         "Xcursor",

@@ -2,6 +2,7 @@
 
 #include "A3.hpp"
 #include "scene_lua.hpp"
+#include "lodepng/lodepng.h"
 using namespace std;
 
 #include "cs488-framework/GlErrorCheck.hpp"
@@ -9,6 +10,8 @@ using namespace std;
 #include "GeometryNode.hpp"
 #include "JointNode.hpp"
 
+#include <iostream>
+#include <string.h>
 #include <imgui/imgui.h>
 
 #include <glm/gtc/type_ptr.hpp>
@@ -19,6 +22,7 @@ using namespace std;
 using namespace glm;
 
 static const size_t DIM = 10;
+static const float FloorHeight = 0.001f;
 static bool show_gui = true;
 static const float TranslateFactor = 200.0f;
 static const float JointRotateFactor = 15.0f;
@@ -38,7 +42,9 @@ A3::A3(const std::string & luaSceneFile)
 	  m_vao_arcCircle(0),
 	  m_vbo_arcCircle(0),
 	  m_grid_vao(0),
-	  m_grid_vbo(0)
+	  m_grid_vbo(0),
+	  m_floor_vao(0),
+	  m_floor_vbo(0)
 {
 
 }
@@ -118,7 +124,6 @@ void A3::init()
 
 	glGenVertexArrays(1, &m_vao_arcCircle);
 	glGenVertexArrays(1, &m_vao_meshData);
-	glGenVertexArrays(1, &m_grid_vao);
 	enableVertexShaderInputSlots();
 
 	processLuaSceneFile(m_luaSceneFile);
@@ -143,6 +148,9 @@ void A3::init()
 	mapVboDataToVertexShaderInputLocations();
 
 	initVar();
+	initGrid();
+	initFloor();
+	initTexture();
 
 	initPerspectiveMatrix();
 
@@ -155,6 +163,123 @@ void A3::init()
 	// all vertex data resources.  This is fine since we already copied this data to
 	// VBOs on the GPU.  We have no use for storing vertex data on the CPU side beyond
 	// this point.
+}
+
+void A3::initGrid() {
+	size_t sz = 3 * 2 * 2 * (DIM+3);
+
+	float *verts = new float[ sz ];
+	size_t ct = 0;
+	for( int idx = 0; idx < DIM+3; ++idx ) {
+		verts[ ct ] = -1;
+		verts[ ct+1 ] = 0;
+		verts[ ct+2 ] = idx-1;
+		verts[ ct+3 ] = DIM+1;
+		verts[ ct+4 ] = 0;
+		verts[ ct+5 ] = idx-1;
+		ct += 6;
+
+		verts[ ct ] = idx-1;
+		verts[ ct+1 ] = 0;
+		verts[ ct+2 ] = -1;
+		verts[ ct+3 ] = idx-1;
+		verts[ ct+4 ] = 0;
+		verts[ ct+5 ] = DIM+1;
+		ct += 6;
+	}
+
+	// Create the vertex array to record buffer assignments.
+	glGenVertexArrays( 1, &m_grid_vao );
+	glBindVertexArray( m_grid_vao );
+
+	// Create the cube vertex buffer
+	glGenBuffers( 1, &m_grid_vbo );
+	glBindBuffer( GL_ARRAY_BUFFER, m_grid_vbo );
+	glBufferData( GL_ARRAY_BUFFER, sz*sizeof(float),
+		verts, GL_STATIC_DRAW );
+
+	// Specify the means of extracting the position values properly.
+	GLint posAttrib = m_shader.getAttribLocation( "position" );
+	glEnableVertexAttribArray( posAttrib );
+	glVertexAttribPointer( posAttrib, 3, GL_FLOAT, GL_FALSE, 0, nullptr );
+
+	// Reset state to prevent rogue code from messing with *my* 
+	// stuff!
+	glBindVertexArray( 0 );
+	glBindBuffer( GL_ARRAY_BUFFER, 0 );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
+
+	// OpenGL has the buffer now, there's no need for us to keep a copy.
+	delete [] verts;
+
+	CHECK_GL_ERRORS;
+}
+
+void A3::initFloor()
+{
+	vec3 floorVertices[] = {
+		// front
+		vec3(0, FloorHeight, 0), vec3(DIM, FloorHeight, 0), vec3(0, FloorHeight, DIM),
+		vec3(0, FloorHeight, DIM), vec3(DIM, FloorHeight, 0), vec3(DIM, FloorHeight, DIM),
+		// back
+		vec3(0, 0, 0), vec3(DIM, 0, 0), vec3(0, 0, DIM),
+		vec3(0, 0, DIM), vec3(DIM, 0, 0), vec3(DIM, 0, DIM),
+		// left
+		vec3(0, FloorHeight, 0), vec3(0, 0, 0), vec3(0, 0, DIM),
+		vec3(0, 0, DIM), vec3(0, FloorHeight, 0), vec3(0, FloorHeight, DIM),
+		// right
+		vec3(DIM, FloorHeight, 0), vec3(DIM, 0, 0), vec3(DIM, 0, DIM),
+		vec3(DIM, 0, DIM), vec3(DIM, FloorHeight, 0), vec3(DIM, FloorHeight, DIM),
+		// top
+		vec3(0, FloorHeight, DIM), vec3(0, 0, DIM), vec3(DIM, 0, DIM),
+		vec3(DIM, 0, DIM), vec3(0, FloorHeight, DIM), vec3(DIM, FloorHeight, DIM),
+		// bottom
+		vec3(0, FloorHeight, 0), vec3(0, 0, 0), vec3(DIM, 0, 0),
+		vec3(DIM, 0, 0), vec3(0, FloorHeight, 0), vec3(DIM, FloorHeight, 0),
+	};
+
+	// Create the vertex array to record buffer assignments.
+	glGenVertexArrays( 1, &m_floor_vao );
+	glBindVertexArray( m_floor_vao );
+
+	// Create the cube vertex buffer
+	glGenBuffers( 1, &m_floor_vbo );
+	glBindBuffer( GL_ARRAY_BUFFER, m_floor_vbo );
+	glBufferData( GL_ARRAY_BUFFER, sizeof(floorVertices),
+		floorVertices, GL_STATIC_DRAW );
+
+	// Specify the means of extracting the position values properly.
+	GLint posAttrib = m_shader.getAttribLocation( "position" );
+	glEnableVertexAttribArray( posAttrib );
+	glVertexAttribPointer( posAttrib, 3, GL_FLOAT, GL_FALSE, 0, nullptr );
+
+	// Reset state to prevent rogue code from messing with *my* 
+	// stuff!
+	glBindVertexArray( 0 );
+	glBindBuffer( GL_ARRAY_BUFFER, 0 );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
+
+	CHECK_GL_ERRORS;
+}
+
+void A3::initTexture() {
+	std::vector<unsigned char> image;
+  	unsigned width, height;
+  	unsigned error = lodepng::decode(image, width, height, getAssetFilePath("floor.png").c_str());
+	
+	// If there's an error, display it.
+	if(error != 0) {
+		cout << "error " << error << ": " << lodepng_error_text(error) << endl;
+	}
+
+	glGenTextures(1, &floor_texture);
+	glBindTexture(GL_TEXTURE_2D, floor_texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, &image[0]);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	cout << "floor_texture id: " << floor_texture << endl;
 }
 
 //----------------------------------------------------------------------------------------
@@ -192,17 +317,6 @@ void A3::enableVertexShaderInputSlots()
 {
 	//-- Enable input slots for m_vao_meshData:
 	{
-		glBindVertexArray(m_grid_vao);
-
-		// Enable the vertex shader attribute location for "position" when rendering.
-		m_positionAttribLocation = m_shader.getAttribLocation("position");
-		glEnableVertexAttribArray(m_positionAttribLocation);
-
-		CHECK_GL_ERRORS;
-	}
-
-	//-- Enable input slots for m_vao_meshData:
-	{
 		glBindVertexArray(m_vao_meshData);
 
 		// Enable the vertex shader attribute location for "position" when rendering.
@@ -235,47 +349,6 @@ void A3::enableVertexShaderInputSlots()
 void A3::uploadVertexDataToVbos (
 		const MeshConsolidator & meshConsolidator
 ) {
-	// Generate VBO to store the grid.
-	{
-		glGenBuffers( 1, &m_grid_vbo );
-		glBindBuffer( GL_ARRAY_BUFFER, m_grid_vbo );
-
-		size_t sz = 3 * 2 * 2 * (DIM+3);
-
-		float *verts = new float[ sz ];
-		size_t ct = 0;
-		for( int idx = 0; idx < DIM+3; ++idx ) {
-			verts[ ct ] = -1;
-			verts[ ct+1 ] = 0;
-			verts[ ct+2 ] = idx-1;
-			verts[ ct+3 ] = DIM+1;
-			verts[ ct+4 ] = 0;
-			verts[ ct+5 ] = idx-1;
-			ct += 6;
-
-			verts[ ct ] = idx-1;
-			verts[ ct+1 ] = 0;
-			verts[ ct+2 ] = -1;
-			verts[ ct+3 ] = idx-1;
-			verts[ ct+4 ] = 0;
-			verts[ ct+5 ] = DIM+1;
-			ct += 6;
-		}
-
-		float *pts = new float[ 2 * CIRCLE_PTS ];
-		for( size_t idx = 0; idx < CIRCLE_PTS; ++idx ) {
-			float ang = 2.0 * M_PI * float(idx) / CIRCLE_PTS;
-			pts[2*idx] = cos( ang );
-			pts[2*idx+1] = sin( ang );
-		}
-
-		glBufferData(GL_ARRAY_BUFFER, sz*sizeof(float), verts, GL_STATIC_DRAW);
-
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		delete [] verts;
-		CHECK_GL_ERRORS;
-	}
-
 	// Generate VBO to store all vertex position data
 	{
 		glGenBuffers(1, &m_vbo_vertexPositions);
@@ -325,17 +398,6 @@ void A3::uploadVertexDataToVbos (
 void A3::mapVboDataToVertexShaderInputLocations()
 {
 	// Bind VAO in order to record the data mapping.
-	glBindVertexArray(m_grid_vao);
-	glBindBuffer(GL_ARRAY_BUFFER, m_grid_vbo);
-	glVertexAttribPointer(m_positionAttribLocation, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
-
-	//-- Unbind target, and restore default values:
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-
-	CHECK_GL_ERRORS;
-
-	// Bind VAO in order to record the data mapping.
 	glBindVertexArray(m_vao_meshData);
 
 	// Tell GL how to map data from the vertex buffer "m_vbo_vertexPositions" into the
@@ -384,6 +446,7 @@ void A3::initViewMatrix() {
 		vec3(0.0f, 0.0f, 0.0f),
 		vec3(0.0f, 1.0f, 0.0f)
 	);
+	m_view = glm::translate(m_view, vec3( -float(DIM)/2.0f, 0, -float(DIM)/2.0f ));
 }
 
 //----------------------------------------------------------------------------------------
@@ -736,6 +799,7 @@ void A3::draw() {
 	glEnable( GL_DEPTH_TEST );
 
 	renderGrid();
+	renderFloor();
 
 	renderSceneGraph(*m_rootNode);
 
@@ -795,6 +859,26 @@ void A3::renderGrid() {
 		vec3 col = vec3(1.0, 1.0, 1.0);
 		glUniform3fv(location, 1, value_ptr(col));
 		glDrawArrays(GL_LINES, 0, (3+DIM)*4);
+	m_shader.disable();
+
+	glBindVertexArray(0);
+	CHECK_GL_ERRORS;
+}
+
+// Draw the floor
+void A3::renderFloor() {
+	glBindVertexArray(m_floor_vao);
+
+	m_shader.enable();
+		//-- Set ModelView matrix:
+		GLint location = m_shader.getUniformLocation("ModelView");
+		mat4 modelView = m_view;
+		glUniformMatrix4fv(location, 1, GL_FALSE, value_ptr(modelView));
+
+		location = m_shader.getUniformLocation("material.kd");
+		vec3 col = vec3(1.0, 1.0, 1.0);
+		glUniform3fv(location, 1, value_ptr(col));
+		glDrawArrays(GL_TRIANGLES, 0, 36);
 	m_shader.disable();
 
 	glBindVertexArray(0);
