@@ -9,6 +9,7 @@
 
 #include "SceneNode.hpp"
 #include "JointNode.hpp"
+#include "Player.hpp"
 
 #include <glm/glm.hpp>
 #include <memory>
@@ -90,12 +91,20 @@ protected:
 
 	LightSource m_light;
 
-	// Fields related to grid geometry.
-	GLuint m_grid_vao; // Vertex Array Object
-	GLuint m_grid_vbo; // Vertex Buffer Object
-	GLuint m_floor_vao; // Vertex Array Object
-	GLuint m_floor_vbo; // Vertex Buffer Object
+	GLuint m_grid_vao;
+	GLuint m_grid_vbo;
+	GLuint m_floor_vao;
+	GLuint m_floor_vbo;
+	GLuint m_floor_uv_vbo;
 	GLuint floor_texture;
+	ShaderProgram m_tex_shader;
+
+	// player1
+	Player player1;
+	bool keyLeftActive;
+	bool keyRightActive;
+	bool keyUpActive;
+	bool keyDownActive;
 
 	//-- GL resources for mesh geometry data:
 	GLuint m_vao_meshData;
@@ -124,10 +133,6 @@ protected:
 	bool mouseLeftActive;
 	bool mouseMiddleActive;
 	bool mouseRightActive;
-	bool keyLeftActive;
-	bool keyRightActive;
-	bool keyUpActive;
-	bool keyDownActive;
 	double prev_x;
 	double prev_y;
 	bool showCircle;

@@ -22,7 +22,6 @@ using namespace std;
 using namespace glm;
 
 static const size_t DIM = 10;
-static const float FloorHeight = 0.001f;
 static bool show_gui = true;
 static const float TranslateFactor = 200.0f;
 static const float JointRotateFactor = 15.0f;
@@ -44,7 +43,8 @@ A3::A3(const std::string & luaSceneFile)
 	  m_grid_vao(0),
 	  m_grid_vbo(0),
 	  m_floor_vao(0),
-	  m_floor_vbo(0)
+	  m_floor_vbo(0),
+	  player1(vec3(0.0, 0.0, 0.0))
 {
 
 }
@@ -93,14 +93,17 @@ void A3::resetAll() {
 
 void A3::initVar()
 {
-	do_picking = false;
-	mouseLeftActive = false;
-	mouseMiddleActive = false;
-	mouseRightActive = false;
+	// player 1
+	player1.setRootNode(m_rootNode.get());
 	keyLeftActive = false;
 	keyRightActive = false;
 	keyUpActive = false;
 	keyDownActive = false;
+
+	do_picking = false;
+	mouseLeftActive = false;
+	mouseMiddleActive = false;
+	mouseRightActive = false;
 	showCircle = true;
 	current_mode = 0;
 	stack_idx = 0;
@@ -218,40 +221,40 @@ void A3::initGrid() {
 void A3::initFloor()
 {
 	vec3 floorVertices[] = {
-		// front
-		vec3(0, FloorHeight, 0), vec3(DIM, FloorHeight, 0), vec3(0, FloorHeight, DIM),
-		vec3(0, FloorHeight, DIM), vec3(DIM, FloorHeight, 0), vec3(DIM, FloorHeight, DIM),
-		// back
 		vec3(0, 0, 0), vec3(DIM, 0, 0), vec3(0, 0, DIM),
-		vec3(0, 0, DIM), vec3(DIM, 0, 0), vec3(DIM, 0, DIM),
-		// left
-		vec3(0, FloorHeight, 0), vec3(0, 0, 0), vec3(0, 0, DIM),
-		vec3(0, 0, DIM), vec3(0, FloorHeight, 0), vec3(0, FloorHeight, DIM),
-		// right
-		vec3(DIM, FloorHeight, 0), vec3(DIM, 0, 0), vec3(DIM, 0, DIM),
-		vec3(DIM, 0, DIM), vec3(DIM, FloorHeight, 0), vec3(DIM, FloorHeight, DIM),
-		// top
-		vec3(0, FloorHeight, DIM), vec3(0, 0, DIM), vec3(DIM, 0, DIM),
-		vec3(DIM, 0, DIM), vec3(0, FloorHeight, DIM), vec3(DIM, FloorHeight, DIM),
-		// bottom
-		vec3(0, FloorHeight, 0), vec3(0, 0, 0), vec3(DIM, 0, 0),
-		vec3(DIM, 0, 0), vec3(0, FloorHeight, 0), vec3(DIM, FloorHeight, 0),
+		vec3(0, 0, DIM), vec3(DIM, 0, 0), vec3(DIM, 0, DIM)
+	};
+
+	vec2 floorUVVertices[] = {
+		vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
+		vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f)
 	};
 
 	// Create the vertex array to record buffer assignments.
 	glGenVertexArrays( 1, &m_floor_vao );
 	glBindVertexArray( m_floor_vao );
 
-	// Create the cube vertex buffer
+	// Create the floor vertex buffer
 	glGenBuffers( 1, &m_floor_vbo );
 	glBindBuffer( GL_ARRAY_BUFFER, m_floor_vbo );
 	glBufferData( GL_ARRAY_BUFFER, sizeof(floorVertices),
 		floorVertices, GL_STATIC_DRAW );
 
 	// Specify the means of extracting the position values properly.
-	GLint posAttrib = m_shader.getAttribLocation( "position" );
+	GLint posAttrib = m_tex_shader.getAttribLocation( "position" );
 	glEnableVertexAttribArray( posAttrib );
 	glVertexAttribPointer( posAttrib, 3, GL_FLOAT, GL_FALSE, 0, nullptr );
+
+	// Create the floor uv coord buffer
+	glGenBuffers( 1, &m_floor_uv_vbo );
+	glBindBuffer( GL_ARRAY_BUFFER, m_floor_uv_vbo );
+	glBufferData( GL_ARRAY_BUFFER, sizeof(floorUVVertices),
+		floorUVVertices, GL_STATIC_DRAW );
+
+	// Specify the means of extracting the position values properly.
+	GLint UVAttrib = m_tex_shader.getAttribLocation( "vertexUV" );
+	glEnableVertexAttribArray( UVAttrib );
+	glVertexAttribPointer( UVAttrib, 2, GL_FLOAT, GL_FALSE, 0, nullptr );
 
 	// Reset state to prevent rogue code from messing with *my* 
 	// stuff!
@@ -274,7 +277,7 @@ void A3::initTexture() {
 
 	glGenTextures(1, &floor_texture);
 	glBindTexture(GL_TEXTURE_2D, floor_texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, &image[0]);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, &image[0]);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -301,6 +304,11 @@ void A3::processLuaSceneFile(const std::string & filename) {
 //----------------------------------------------------------------------------------------
 void A3::createShaderProgram()
 {
+	m_tex_shader.generateProgramObject();
+	m_tex_shader.attachVertexShader( getAssetFilePath("tex_VertexShader.vs").c_str() );
+	m_tex_shader.attachFragmentShader( getAssetFilePath("tex_FragmentShader.fs").c_str() );
+	m_tex_shader.link();
+
 	m_shader.generateProgramObject();
 	m_shader.attachVertexShader( getAssetFilePath("VertexShader.vs").c_str() );
 	m_shader.attachFragmentShader( getAssetFilePath("FragmentShader.fs").c_str() );
@@ -501,17 +509,8 @@ void A3::appLogic()
 	uploadCommonSceneUniforms();
 
 	// handle character movement
-	if (keyLeftActive) {
-		m_rootNode->translate(vec3(-0.1f, 0.0, 0.0f));
-	}
-	if (keyRightActive) {
-		m_rootNode->translate(vec3(0.1f, 0.0, 0.0f));
-	}
-	if (keyUpActive) {
-		m_rootNode->translate(vec3(0.0f, 0.0, -0.1f));
-	}
-	if (keyDownActive) {
-		m_rootNode->translate(vec3(0.0f, 0.0, 0.1f));
+	if (keyLeftActive || keyRightActive || keyUpActive || keyDownActive) {
+		player1.move();
 	}
 }
 
@@ -804,9 +803,6 @@ void A3::draw() {
 	renderSceneGraph(*m_rootNode);
 
 	glDisable( GL_DEPTH_TEST );
-	if (showCircle) {
-		renderArcCircle();
-	}
 }
 
 //----------------------------------------------------------------------------------------
@@ -867,21 +863,19 @@ void A3::renderGrid() {
 
 // Draw the floor
 void A3::renderFloor() {
+	glBindTexture(GL_TEXTURE_2D, floor_texture);
 	glBindVertexArray(m_floor_vao);
 
-	m_shader.enable();
+	m_tex_shader.enable();
 		//-- Set ModelView matrix:
-		GLint location = m_shader.getUniformLocation("ModelView");
-		mat4 modelView = m_view;
-		glUniformMatrix4fv(location, 1, GL_FALSE, value_ptr(modelView));
-
-		location = m_shader.getUniformLocation("material.kd");
-		vec3 col = vec3(1.0, 1.0, 1.0);
-		glUniform3fv(location, 1, value_ptr(col));
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-	m_shader.disable();
+		GLint location = m_tex_shader.getUniformLocation("PVM");
+		mat4 PVM = m_perpsective * m_view;
+		glUniformMatrix4fv(location, 1, GL_FALSE, value_ptr(PVM));
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+	m_tex_shader.disable();
 
 	glBindVertexArray(0);
+	glBindTexture(GL_TEXTURE_2D, 0);
 	CHECK_GL_ERRORS;
 }
 
@@ -1090,15 +1084,19 @@ bool A3::keyInputEvent (
 		}
 		if(key == GLFW_KEY_LEFT) {
 			keyLeftActive = true;
+			player1.setDirection(1);
 		}
 		if(key == GLFW_KEY_RIGHT) {
 			keyRightActive = true;
+			player1.setDirection(3);
 		}
 		if(key == GLFW_KEY_UP) {
 			keyUpActive = true;
+			player1.setDirection(2);
 		}
 		if(key == GLFW_KEY_DOWN) {
 			keyDownActive = true;
+			player1.setDirection(0);
 		}
 		eventHandled = true;
 	}
