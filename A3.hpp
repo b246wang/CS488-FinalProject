@@ -82,6 +82,7 @@ protected:
 	void drawNodes(const SceneNode *node, glm::mat4 t);
 	void pickNode();
 	JointNode* bfsJoint(SceneNode * root, unsigned int id);
+	JointNode* bfsJoint(SceneNode * root, std::string name);
 	void pushJointStack();
 	void undo();
 	void redo();

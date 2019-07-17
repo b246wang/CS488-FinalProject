@@ -1,11 +1,13 @@
 #include "Player.hpp"
 
 using namespace glm;
+using namespace std;
 
 Player::Player(vec3 p)
   : direction(0), // 0: south, 1: west, 2: north, 3: east
     previousDirection(0),
     rootNode(NULL),
+    neckJoint(NULL),
     speed(0.0), // 0.0, 0.03, 0.05, 0.07, 0.09
     position(p)
 {}
@@ -17,6 +19,11 @@ void Player::setDirection(int d) {
 
 void Player::setRootNode(SceneNode * n) {
     rootNode = n;
+}
+
+void Player::setNeckJoint(JointNode * n) {
+    cout << "setNeckJoint: " << n << endl;
+    neckJoint = n;
 }
 
 void Player::move() {
