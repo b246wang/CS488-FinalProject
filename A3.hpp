@@ -10,6 +10,8 @@
 #include "SceneNode.hpp"
 #include "JointNode.hpp"
 #include "Player.hpp"
+#include "Animation.hpp"
+#include "Keyframe.hpp"
 
 #include <glm/glm.hpp>
 #include <memory>

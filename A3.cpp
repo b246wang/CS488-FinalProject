@@ -96,7 +96,10 @@ void A3::initVar()
 	// player 1
 	SceneNode * p1_rootNode = m_rootNode.get();
 	player1.setRootNode(p1_rootNode);
-	player1.setNeckJoint(bfsJoint(p1_rootNode, "neckJoint"));
+	player1.setJoints(
+		bfsJoint(p1_rootNode, "neckJoint"), 
+		bfsJoint(p1_rootNode, "leftThighJoint"), 
+		bfsJoint(p1_rootNode, "rightThighJoint"));
 	keyLeftActive = false;
 	keyRightActive = false;
 	keyUpActive = false;
@@ -684,8 +687,8 @@ JointNode* A3::bfsJoint(SceneNode * root, string name) {
 		
 		for (SceneNode * child : n->children) {
 			if (child->m_name == name) {
-				if (n->m_nodeType == NodeType::JointNode) {
-					return static_cast<JointNode *>(n);
+				if (child->m_nodeType == NodeType::JointNode) {
+					return static_cast<JointNode *>(child);
 				} else {
 					return NULL;
 				}
