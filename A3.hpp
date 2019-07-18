@@ -37,6 +37,17 @@ struct JointHistory {
 	}
 };
 
+struct Obstacle {
+	float x;
+	float y;
+	bool destroyed;
+
+	Obstacle(float pos_x, float pos_y) {
+		x = pos_x;
+		y = pos_y;
+		destroyed = false;
+	}
+};
 
 class A3 : public CS488Window {
 public:
@@ -106,6 +117,7 @@ protected:
 	GLuint m_cube_uv_vbo;
 	GLuint floor_texture;
 	GLuint obstacle_texture;
+	std::vector<Obstacle> obstacles;
 	ShaderProgram m_tex_shader;
 
 	// player1

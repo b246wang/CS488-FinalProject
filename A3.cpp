@@ -23,6 +23,20 @@ using namespace glm;
 
 static const size_t DIM = 10;
 static const float cube_h = 1.0f;
+static const vec2 cubeUVs[] = {
+	vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
+	vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
+	vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
+	vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
+	vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
+	vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
+	vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
+	vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
+	vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
+	vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
+	vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
+	vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f)
+};
 static bool show_gui = true;
 static const float TranslateFactor = 200.0f;
 static const float JointRotateFactor = 15.0f;
@@ -274,43 +288,39 @@ void A3::initFloor()
 }
 
 void A3::initObstacles() {
-	float x = 2;
-	float y = 0;
-	vec3 cubeVertices[] = {
-		// front
-		vec3(x, cube_h, y), vec3(x + 1, cube_h, y), vec3(x, cube_h, y + 1),
-		vec3(x, cube_h, y + 1), vec3(x + 1, cube_h, y), vec3(x + 1, cube_h, y + 1),
-		// back
-		vec3(x, 0, y), vec3(x + 1, 0, y), vec3(x, 0, y + 1),
-		vec3(x, 0, y + 1), vec3(x + 1, 0, y), vec3(x + 1, 0, y + 1),
-		// left
-		vec3(x, cube_h, y), vec3(x, 0, y), vec3(x, 0, y + 1),
-		vec3(x, 0, y + 1), vec3(x, cube_h, y), vec3(x, cube_h, y + 1),
-		// right
-		vec3(x + 1, cube_h, y), vec3(x + 1, 0, y), vec3(x + 1, 0, y + 1),
-		vec3(x + 1, 0, y + 1), vec3(x + 1, cube_h, y), vec3(x + 1, cube_h, y + 1),
-		// top
-		vec3(x, cube_h, y + 1), vec3(x, 0, y + 1), vec3(x + 1, 0, y + 1),
-		vec3(x + 1, 0, y + 1), vec3(x, cube_h, y + 1), vec3(x + 1, cube_h, y + 1),
-		// bottom
-		vec3(x, cube_h, y), vec3(x, 0, y), vec3(x + 1, 0, y),
-		vec3(x + 1, 0, y), vec3(x, cube_h, y), vec3(x + 1, cube_h, y),
-	};
+	obstacles.push_back(Obstacle(5.0f, 5.0f));
+	obstacles.push_back(Obstacle(2.0f, 0.0f));
 
-	vec2 cubeUVVertices[] = {
-		vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
-		vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
-		vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
-		vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
-		vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
-		vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
-		vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
-		vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
-		vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
-		vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
-		vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
-		vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f)
-	};
+	vector<vec3> cubeVertices;
+	vector<vec2> cubeUVVertices;
+	for (Obstacle &obstacle : obstacles) {
+		if (!obstacle.destroyed) {
+			float x = obstacle.x;
+			float y = obstacle.y;
+			vec3 cube[] = {
+				// front
+				vec3(x, cube_h, y), vec3(x + cube_h, cube_h, y), vec3(x, cube_h, y + cube_h),
+				vec3(x, cube_h, y + cube_h), vec3(x + cube_h, cube_h, y), vec3(x + cube_h, cube_h, y + cube_h),
+				// back
+				vec3(x, 0, y), vec3(x + cube_h, 0, y), vec3(x, 0, y + cube_h),
+				vec3(x, 0, y + cube_h), vec3(x + cube_h, 0, y), vec3(x + cube_h, 0, y + cube_h),
+				// left
+				vec3(x, cube_h, y), vec3(x, 0, y), vec3(x, 0, y + cube_h),
+				vec3(x, 0, y + cube_h), vec3(x, cube_h, y), vec3(x, cube_h, y + cube_h),
+				// right
+				vec3(x + cube_h, cube_h, y), vec3(x + cube_h, 0, y), vec3(x + cube_h, 0, y + cube_h),
+				vec3(x + cube_h, 0, y + cube_h), vec3(x + cube_h, cube_h, y), vec3(x + cube_h, cube_h, y + cube_h),
+				// top
+				vec3(x, cube_h, y + cube_h), vec3(x, 0, y + cube_h), vec3(x + cube_h, 0, y + cube_h),
+				vec3(x + cube_h, 0, y + cube_h), vec3(x, cube_h, y + cube_h), vec3(x + cube_h, cube_h, y + cube_h),
+				// bottom
+				vec3(x, cube_h, y), vec3(x, 0, y), vec3(x + cube_h, 0, y),
+				vec3(x + cube_h, 0, y), vec3(x, cube_h, y), vec3(x + cube_h, cube_h, y),
+			};
+			cubeVertices.insert(cubeVertices.end(), begin(cube), end(cube));
+			cubeUVVertices.insert(cubeUVVertices.end(), begin(cubeUVs), end(cubeUVs));
+		}
+	}
 
 	// Create the vertex array to record buffer assignments.
 	glGenVertexArrays( 1, &m_cube_vao );
@@ -319,8 +329,8 @@ void A3::initObstacles() {
 	// Create the floor vertex buffer
 	glGenBuffers( 1, &m_cube_vbo );
 	glBindBuffer( GL_ARRAY_BUFFER, m_cube_vbo );
-	glBufferData( GL_ARRAY_BUFFER, sizeof(cubeVertices),
-		cubeVertices, GL_STATIC_DRAW );
+	glBufferData( GL_ARRAY_BUFFER, sizeof(vec3) * cubeVertices.size(),
+		cubeVertices.data(), GL_STATIC_DRAW );
 
 	// Specify the means of extracting the position values properly.
 	GLint posAttrib = m_tex_shader.getAttribLocation( "position" );
@@ -330,8 +340,8 @@ void A3::initObstacles() {
 	// Create the floor uv coord buffer
 	glGenBuffers( 1, &m_cube_uv_vbo );
 	glBindBuffer( GL_ARRAY_BUFFER, m_cube_uv_vbo );
-	glBufferData( GL_ARRAY_BUFFER, sizeof(cubeUVVertices),
-		cubeUVVertices, GL_STATIC_DRAW );
+	glBufferData( GL_ARRAY_BUFFER, sizeof(vec2) * cubeUVVertices.size(),
+		cubeUVVertices.data(), GL_STATIC_DRAW );
 
 	// Specify the means of extracting the position values properly.
 	GLint UVAttrib = m_tex_shader.getAttribLocation( "vertexUV" );
@@ -996,7 +1006,7 @@ void A3::renderObstacles() {
 		GLint location = m_tex_shader.getUniformLocation("PVM");
 		mat4 PVM = m_perpsective * m_view;
 		glUniformMatrix4fv(location, 1, GL_FALSE, value_ptr(PVM));
-		glDrawArrays(GL_TRIANGLES, 0, 36);
+		glDrawArrays(GL_TRIANGLES, 0, 36 * obstacles.size());
 	m_tex_shader.disable();
 
 	glBindVertexArray(0);
