@@ -71,7 +71,8 @@ protected:
 	void initVar();
 	void initGrid();
 	void initFloor();
-	void initTexture();
+	void initObstacles();
+	GLuint createTexture(std::string filename);
 	void resetPosition();
 	void resetRotation();
 	void resetJoints();
@@ -81,6 +82,7 @@ protected:
 	void renderArcCircle();
 	void renderGrid();
 	void renderFloor();
+	void renderObstacles();
 	void drawNodes(const SceneNode *node, glm::mat4 t);
 	void pickNode();
 	JointNode* bfsJoint(SceneNode * root, unsigned int id);
@@ -99,7 +101,11 @@ protected:
 	GLuint m_floor_vao;
 	GLuint m_floor_vbo;
 	GLuint m_floor_uv_vbo;
+	GLuint m_cube_vao;
+	GLuint m_cube_vbo;
+	GLuint m_cube_uv_vbo;
 	GLuint floor_texture;
+	GLuint obstacle_texture;
 	ShaderProgram m_tex_shader;
 
 	// player1

@@ -11,13 +11,18 @@ class Player {
 public:
     Player(glm::vec3 p);
     void move();
-    void setDirection(int d);
+    glm::mat4 setDirection(int d);
     void setRootNode(SceneNode * n);
     void setJoints(JointNode * neck, JointNode * l, JointNode * r);
 
     int direction; // 0: south, 1: west, 2: north, 3: east
-    int previousDirection;
+    glm::mat4 currRot;
     int speed;
+    double neckRotation;
+    double leftThighRotation;
+    double rightThighRotation;
+    double leftThighDelta;
+    double rightThighDelta;
     Animation moveAnimation;
     SceneNode * rootNode;
     JointNode * neckJoint;

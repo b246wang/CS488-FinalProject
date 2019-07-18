@@ -86,7 +86,7 @@ torso:add_child(leftThighNode)
 leftThighNode:scale(1.0/bodyRatio[1], 1.0/bodyRatio[2], 1.0/bodyRatio[3])
 leftThighNode:translate(0.0, -0.3, 0.0)
 
-leftThighJoint = gr.joint('leftThighJoint', {-45, 0, 10}, {0, 0, 0});
+leftThighJoint = gr.joint('leftThighJoint', {-45, 0, 15}, {0, 0, 0});
 leftThighNode:add_child(leftThighJoint)
 
 legRatio = {0.1, 0.2, 0.1}
@@ -135,7 +135,7 @@ torso:add_child(rightThighNode)
 rightThighNode:scale(1.0/bodyRatio[1], 1.0/bodyRatio[2], 1.0/bodyRatio[3])
 rightThighNode:translate(0.0, -0.3, 0.0)
 
-rightThighJoint = gr.joint('rightThighJoint', {-45, 0, 10}, {0, 0, 0});
+rightThighJoint = gr.joint('rightThighJoint', {-45, 0, 15}, {0, 0, 0});
 rightThighNode:add_child(rightThighJoint)
 
 rightThigh = gr.mesh('sphere', 'rightThigh')

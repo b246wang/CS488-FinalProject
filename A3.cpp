@@ -22,6 +22,7 @@ using namespace std;
 using namespace glm;
 
 static const size_t DIM = 10;
+static const float cube_h = 1.0f;
 static bool show_gui = true;
 static const float TranslateFactor = 200.0f;
 static const float JointRotateFactor = 15.0f;
@@ -158,7 +159,9 @@ void A3::init()
 	initVar();
 	initGrid();
 	initFloor();
-	initTexture();
+	initObstacles();
+	floor_texture = createTexture(getAssetFilePath("floor.png"));
+	obstacle_texture = createTexture(getAssetFilePath("obstacle.png"));
 
 	initPerspectiveMatrix();
 
@@ -270,24 +273,100 @@ void A3::initFloor()
 	CHECK_GL_ERRORS;
 }
 
-void A3::initTexture() {
+void A3::initObstacles() {
+	float x = 2;
+	float y = 0;
+	vec3 cubeVertices[] = {
+		// front
+		vec3(x, cube_h, y), vec3(x + 1, cube_h, y), vec3(x, cube_h, y + 1),
+		vec3(x, cube_h, y + 1), vec3(x + 1, cube_h, y), vec3(x + 1, cube_h, y + 1),
+		// back
+		vec3(x, 0, y), vec3(x + 1, 0, y), vec3(x, 0, y + 1),
+		vec3(x, 0, y + 1), vec3(x + 1, 0, y), vec3(x + 1, 0, y + 1),
+		// left
+		vec3(x, cube_h, y), vec3(x, 0, y), vec3(x, 0, y + 1),
+		vec3(x, 0, y + 1), vec3(x, cube_h, y), vec3(x, cube_h, y + 1),
+		// right
+		vec3(x + 1, cube_h, y), vec3(x + 1, 0, y), vec3(x + 1, 0, y + 1),
+		vec3(x + 1, 0, y + 1), vec3(x + 1, cube_h, y), vec3(x + 1, cube_h, y + 1),
+		// top
+		vec3(x, cube_h, y + 1), vec3(x, 0, y + 1), vec3(x + 1, 0, y + 1),
+		vec3(x + 1, 0, y + 1), vec3(x, cube_h, y + 1), vec3(x + 1, cube_h, y + 1),
+		// bottom
+		vec3(x, cube_h, y), vec3(x, 0, y), vec3(x + 1, 0, y),
+		vec3(x + 1, 0, y), vec3(x, cube_h, y), vec3(x + 1, cube_h, y),
+	};
+
+	vec2 cubeUVVertices[] = {
+		vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
+		vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
+		vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
+		vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
+		vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
+		vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
+		vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
+		vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
+		vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
+		vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
+		vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
+		vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f)
+	};
+
+	// Create the vertex array to record buffer assignments.
+	glGenVertexArrays( 1, &m_cube_vao );
+	glBindVertexArray( m_cube_vao );
+
+	// Create the floor vertex buffer
+	glGenBuffers( 1, &m_cube_vbo );
+	glBindBuffer( GL_ARRAY_BUFFER, m_cube_vbo );
+	glBufferData( GL_ARRAY_BUFFER, sizeof(cubeVertices),
+		cubeVertices, GL_STATIC_DRAW );
+
+	// Specify the means of extracting the position values properly.
+	GLint posAttrib = m_tex_shader.getAttribLocation( "position" );
+	glEnableVertexAttribArray( posAttrib );
+	glVertexAttribPointer( posAttrib, 3, GL_FLOAT, GL_FALSE, 0, nullptr );
+
+	// Create the floor uv coord buffer
+	glGenBuffers( 1, &m_cube_uv_vbo );
+	glBindBuffer( GL_ARRAY_BUFFER, m_cube_uv_vbo );
+	glBufferData( GL_ARRAY_BUFFER, sizeof(cubeUVVertices),
+		cubeUVVertices, GL_STATIC_DRAW );
+
+	// Specify the means of extracting the position values properly.
+	GLint UVAttrib = m_tex_shader.getAttribLocation( "vertexUV" );
+	glEnableVertexAttribArray( UVAttrib );
+	glVertexAttribPointer( UVAttrib, 2, GL_FLOAT, GL_FALSE, 0, nullptr );
+
+	// Reset state to prevent rogue code from messing with *my* 
+	// stuff!
+	glBindVertexArray( 0 );
+	glBindBuffer( GL_ARRAY_BUFFER, 0 );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
+
+	CHECK_GL_ERRORS;
+}
+
+GLuint A3::createTexture(string filename) {
+	GLuint currTexture;
 	std::vector<unsigned char> image;
   	unsigned width, height;
-  	unsigned error = lodepng::decode(image, width, height, getAssetFilePath("floor.png").c_str());
+  	unsigned error = lodepng::decode(image, width, height, filename.c_str());
 	
 	// If there's an error, display it.
 	if(error != 0) {
 		cout << "error " << error << ": " << lodepng_error_text(error) << endl;
 	}
 
-	glGenTextures(1, &floor_texture);
-	glBindTexture(GL_TEXTURE_2D, floor_texture);
+	glGenTextures(1, &currTexture);
+	glBindTexture(GL_TEXTURE_2D, currTexture);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, &image[0]);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	cout << "floor_texture id: " << floor_texture << endl;
+
+	return currTexture;
 }
 
 //----------------------------------------------------------------------------------------
@@ -827,6 +906,7 @@ void A3::draw() {
 
 	renderGrid();
 	renderFloor();
+	renderObstacles();
 
 	renderSceneGraph(*m_rootNode);
 
@@ -900,6 +980,23 @@ void A3::renderFloor() {
 		mat4 PVM = m_perpsective * m_view;
 		glUniformMatrix4fv(location, 1, GL_FALSE, value_ptr(PVM));
 		glDrawArrays(GL_TRIANGLES, 0, 6);
+	m_tex_shader.disable();
+
+	glBindVertexArray(0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	CHECK_GL_ERRORS;
+}
+
+void A3::renderObstacles() {
+	glBindTexture(GL_TEXTURE_2D, obstacle_texture);
+	glBindVertexArray(m_cube_vao);
+
+	m_tex_shader.enable();
+		//-- Set ModelView matrix:
+		GLint location = m_tex_shader.getUniformLocation("PVM");
+		mat4 PVM = m_perpsective * m_view;
+		glUniformMatrix4fv(location, 1, GL_FALSE, value_ptr(PVM));
+		glDrawArrays(GL_TRIANGLES, 0, 36);
 	m_tex_shader.disable();
 
 	glBindVertexArray(0);
@@ -1112,19 +1209,19 @@ bool A3::keyInputEvent (
 		}
 		if(key == GLFW_KEY_LEFT) {
 			keyLeftActive = true;
-			player1.setDirection(1);
+			m_rot = player1.setDirection(1);
 		}
 		if(key == GLFW_KEY_RIGHT) {
 			keyRightActive = true;
-			player1.setDirection(3);
+			m_rot = player1.setDirection(3);
 		}
 		if(key == GLFW_KEY_UP) {
 			keyUpActive = true;
-			player1.setDirection(2);
+			m_rot = player1.setDirection(2);
 		}
 		if(key == GLFW_KEY_DOWN) {
 			keyDownActive = true;
-			player1.setDirection(0);
+			m_rot = player1.setDirection(0);
 		}
 		eventHandled = true;
 	}

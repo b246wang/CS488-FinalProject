@@ -1,11 +1,42 @@
 #include "Player.hpp"
+#include "cs488-framework/MathUtils.hpp"
 
 using namespace glm;
 using namespace std;
 
+static const float rotationDelta = 3.0;
+static const float neckRotationDelta = 5.0;
+static const float r_90 = degreesToRadians(90.0f);
+static const float r_m_90 = degreesToRadians(-90.0f);
+static const float r_180 = degreesToRadians(180.0f);
+static const mat4 orig_rot = mat4(1.0f);
+static const mat4 left_rot = mat4(
+    cos(r_90), 0.0f, sin(r_90), 0.0f,
+    0.0f, 1.0f, 0.0f, 0.0f,
+    -sin(r_90), 0.0f, cos(r_90), 0.0f,
+    0.0f, 0.0f, 0.0f, 1.0f
+);
+static const mat4 right_rot = mat4(
+    cos(r_m_90), 0.0f, sin(r_m_90), 0.0f,
+    0.0f, 1.0f, 0.0f, 0.0f,
+    -sin(r_m_90), 0.0f, cos(r_m_90), 0.0f,
+    0.0f, 0.0f, 0.0f, 1.0f
+);
+static const mat4 up_rot = mat4(
+    cos(r_180), 0.0f, sin(r_180), 0.0f,
+    0.0f, 1.0f, 0.0f, 0.0f,
+    -sin(r_180), 0.0f, cos(r_180), 0.0f,
+    0.0f, 0.0f, 0.0f, 1.0f
+);
+
 Player::Player(vec3 p)
   : direction(0), // 0: south, 1: west, 2: north, 3: east
-    previousDirection(0),
+    currRot(mat4(1.0f)),
+    neckRotation(0.0),
+    leftThighRotation(0.0),
+    rightThighRotation(0.0),
+    leftThighDelta(-rotationDelta),
+    rightThighDelta(rotationDelta),
     rootNode(NULL),
     neckJoint(NULL),
     leftThighJoint(NULL),
@@ -37,22 +68,64 @@ Player::Player(vec3 p)
     // cout << "moveAnimation 1st: " << moveAnimation.keyframes.front().timestamp << endl;
 }
 
-void Player::setDirection(int d) {
-    previousDirection = direction;
+mat4 Player::setDirection(int d) {
     direction = d;
+    if (d == 0) {
+        return orig_rot;
+    } else if (d == 1) {
+        return left_rot;
+    } else if (d == 2) {
+        return up_rot;
+    } else if (d == 3) {
+        return right_rot;
+    }
+    cout << "cannot find direction: " << d << endl;
+    return orig_rot;
 }
 
 void Player::setRootNode(SceneNode * n) {
     rootNode = n;
 }
 
-void Player::setNeckJoint(JointNode * neck, JointNode * l, JointNode * r) {
+void Player::setJoints(JointNode * neck, JointNode * l, JointNode * r) {
     neckJoint = neck;
     leftThighJoint = l;
     rightThighJoint = r;
 }
 
 void Player::move() {
+    if (leftThighDelta < 0) {
+        if (leftThighRotation > -15.0) {
+            leftThighRotation += leftThighDelta;
+            leftThighJoint->rotate('x', leftThighDelta);
+        } else {
+            leftThighDelta = rotationDelta;
+        }
+    } else {
+        if (leftThighRotation < 15.0) {
+            leftThighRotation += leftThighDelta;
+            leftThighJoint->rotate('x', leftThighDelta);
+        } else {
+            leftThighDelta = -rotationDelta;
+        }
+    }
+    
+    if (rightThighDelta > 0) {
+        if (rightThighRotation < 15.0) {
+            rightThighRotation += rightThighDelta;
+            rightThighJoint->rotate('x', rightThighDelta);
+        } else {
+            rightThighDelta = -rotationDelta;
+        }
+    } else {
+        if (rightThighRotation > -15.0) {
+            rightThighRotation += rightThighDelta;
+            rightThighJoint->rotate('x', rightThighDelta);
+        } else {
+            rightThighDelta = rotationDelta;
+        }
+    }
+    
     if (direction == 1) {
         rootNode->translate(vec3(-0.07f + speed, 0.0, 0.0f));
     } else if (direction == 3) {
