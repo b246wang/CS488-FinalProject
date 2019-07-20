@@ -6,6 +6,8 @@ using namespace std;
 
 static const float rotationDelta = 3.0;
 static const float neckRotationDelta = 5.0;
+static const float collision_square = 0.92f;
+static const float init_speed = 0.07f;
 static const float r_90 = degreesToRadians(90.0f);
 static const float r_m_90 = degreesToRadians(-90.0f);
 static const float r_180 = degreesToRadians(180.0f);
@@ -29,8 +31,11 @@ static const mat4 up_rot = mat4(
     0.0f, 0.0f, 0.0f, 1.0f
 );
 
-Player::Player(vec3 p)
-  : direction(0), // 0: south, 1: west, 2: north, 3: east
+Player::Player(float pos_x, float pos_y)
+  : x(pos_x),
+    y(pos_y),
+    dx(0.0f),
+    dy(0.0f),
     currRot(mat4(1.0f)),
     neckRotation(0.0),
     leftThighRotation(0.0),
@@ -41,8 +46,7 @@ Player::Player(vec3 p)
     neckJoint(NULL),
     leftThighJoint(NULL),
     rightThighJoint(NULL),
-    speed(0.0), // 0.0, 0.03, 0.05, 0.07, 0.09
-    position(p),
+    speed(1.0f),
     moveAnimation(Animation())
 {
     map<string, double> jr1;
@@ -69,18 +73,33 @@ Player::Player(vec3 p)
 }
 
 mat4 Player::setDirection(int d) {
-    direction = d;
     if (d == 0) {
+        dy = init_speed;
         return orig_rot;
     } else if (d == 1) {
+        dx = -init_speed;
         return left_rot;
     } else if (d == 2) {
+        dy = -init_speed;
         return up_rot;
     } else if (d == 3) {
+        dx = init_speed;
         return right_rot;
     }
     cout << "cannot find direction: " << d << endl;
     return orig_rot;
+}
+
+void Player::removeDirection(int d) {
+    if (d == 0 && dy > 0.0f) {
+        dy = 0.0f;
+    } else if (d == 1 && dx < 0.0f) {
+        dx = 0.0f;
+    } else if (d == 2 && dy < 0.0f) {
+        dy = 0.0f;
+    } else if (d == 3 && dx > 0.0f) {
+        dx = 0.0f;
+    }
 }
 
 void Player::setRootNode(SceneNode * n) {
@@ -93,46 +112,52 @@ void Player::setJoints(JointNode * neck, JointNode * l, JointNode * r) {
     rightThighJoint = r;
 }
 
-void Player::move() {
-    if (leftThighDelta < 0) {
-        if (leftThighRotation > -15.0) {
-            leftThighRotation += leftThighDelta;
-            leftThighJoint->rotate('x', leftThighDelta);
+void Player::move(bool hasCollision) {
+    if (dx != 0.0f || dy != 0.0f) {
+        // animate
+        if (leftThighDelta < 0) {
+            if (leftThighRotation > -15.0) {
+                leftThighRotation += leftThighDelta;
+                leftThighJoint->rotate('x', leftThighDelta);
+            } else {
+                leftThighDelta = rotationDelta;
+            }
         } else {
-            leftThighDelta = rotationDelta;
+            if (leftThighRotation < 15.0) {
+                leftThighRotation += leftThighDelta;
+                leftThighJoint->rotate('x', leftThighDelta);
+            } else {
+                leftThighDelta = -rotationDelta;
+            }
         }
-    } else {
-        if (leftThighRotation < 15.0) {
-            leftThighRotation += leftThighDelta;
-            leftThighJoint->rotate('x', leftThighDelta);
+        
+        if (rightThighDelta > 0) {
+            if (rightThighRotation < 15.0) {
+                rightThighRotation += rightThighDelta;
+                rightThighJoint->rotate('x', rightThighDelta);
+            } else {
+                rightThighDelta = -rotationDelta;
+            }
         } else {
-            leftThighDelta = -rotationDelta;
+            if (rightThighRotation > -15.0) {
+                rightThighRotation += rightThighDelta;
+                rightThighJoint->rotate('x', rightThighDelta);
+            } else {
+                rightThighDelta = rotationDelta;
+            }
         }
-    }
-    
-    if (rightThighDelta > 0) {
-        if (rightThighRotation < 15.0) {
-            rightThighRotation += rightThighDelta;
-            rightThighJoint->rotate('x', rightThighDelta);
-        } else {
-            rightThighDelta = -rotationDelta;
+
+        // move
+        if (!hasCollision) {
+            if (dx != 0.0f && dy != 0.0f) {
+                rootNode->translate(vec3(dx * 0.7071 * speed, 0.0f, dy * 0.7071 * speed));
+                x += dx * 0.7071 * speed;
+                y += dy * 0.7071 * speed;
+            } else {
+                rootNode->translate(vec3(dx * speed, 0.0f, dy * speed));
+                x += dx * speed;
+                y += dy * speed;
+            }
         }
-    } else {
-        if (rightThighRotation > -15.0) {
-            rightThighRotation += rightThighDelta;
-            rightThighJoint->rotate('x', rightThighDelta);
-        } else {
-            rightThighDelta = rotationDelta;
-        }
-    }
-    
-    if (direction == 1) {
-        rootNode->translate(vec3(-0.07f + speed, 0.0, 0.0f));
-    } else if (direction == 3) {
-        rootNode->translate(vec3(0.07f + speed, 0.0, 0.0f));
-    } else if (direction == 2) {
-        rootNode->translate(vec3(0.0f, 0.0, -0.07f + speed));
-    } else if (direction == 0) {
-        rootNode->translate(vec3(0.0f, 0.0, 0.07f + speed));
     }
 }

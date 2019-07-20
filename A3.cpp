@@ -23,6 +23,7 @@ using namespace glm;
 
 static const size_t DIM = 10;
 static const float cube_h = 1.0f;
+static const float collision_square = 0.92f;
 static const vec2 cubeUVs[] = {
 	vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
 	vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
@@ -59,7 +60,7 @@ A3::A3(const std::string & luaSceneFile)
 	  m_grid_vbo(0),
 	  m_floor_vao(0),
 	  m_floor_vbo(0),
-	  player1(vec3(0.0, 0.0, 0.0))
+	  player1(0.0f, 0.0f)
 {
 
 }
@@ -182,6 +183,7 @@ void A3::init()
 	initViewMatrix();
 
 	initLightSources();
+	// initShadows();
 
 
 	// Exiting the current scope calls delete automatically on meshConsolidator freeing
@@ -412,6 +414,16 @@ void A3::createShaderProgram()
 	m_shader_arcCircle.attachVertexShader( getAssetFilePath("arc_VertexShader.vs").c_str() );
 	m_shader_arcCircle.attachFragmentShader( getAssetFilePath("arc_FragmentShader.fs").c_str() );
 	m_shader_arcCircle.link();
+
+	// depth_shader.generateProgramObject();
+	// depth_shader.attachVertexShader( getAssetFilePath("depth_VertexShader.vs").c_str() );
+	// depth_shader.attachFragmentShader( getAssetFilePath("depth_FragmentShader.fs").c_str() );
+	// depth_shader.link();
+
+	// shadow_shader.generateProgramObject();
+	// shadow_shader.attachVertexShader( getAssetFilePath("shadow_VertexShader.vs").c_str() );
+	// shadow_shader.attachFragmentShader( getAssetFilePath("shadow_FragmentShader.fs").c_str() );
+	// shadow_shader.link();
 }
 
 //----------------------------------------------------------------------------------------
@@ -558,6 +570,36 @@ void A3::initLightSources() {
 	m_light.rgbIntensity = vec3(1.0f); // light
 }
 
+void A3::initShadows() {
+	glGenFramebuffers(1, &shadowFrameBuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, shadowFrameBuffer);
+
+	glGenTextures(1, &shadowTexture);
+	glBindTexture(GL_TEXTURE_2D, shadowTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, 1024, 1024, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowTexture, 0);
+	glDrawBuffer(GL_NONE);
+	glReadBuffer(GL_NONE);
+
+	// Always check that our framebuffer is ok
+	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		cout << "shadow framebuffer is wrong!!" << endl;
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// Specify the means of extracting the position values properly.
+	// GLint posAttrib = depth_shader.getAttribLocation( "position" );
+	// glEnableVertexAttribArray( posAttrib );
+	// glVertexAttribPointer( posAttrib, 3, GL_FLOAT, GL_FALSE, 0, nullptr );
+
+	CHECK_GL_ERRORS;
+}
+
 //----------------------------------------------------------------------------------------
 void A3::uploadCommonSceneUniforms() {
 	m_shader.enable();
@@ -592,6 +634,33 @@ void A3::uploadCommonSceneUniforms() {
 	m_shader.disable();
 }
 
+bool A3::checkCollision(Player &p) {
+	for (Obstacle &obstacle : obstacles) {
+		if (!obstacle.destroyed) {
+			// Collision x-axis
+	    bool collisionX = p.x + p.dx + collision_square >= obstacle.x &&
+	        obstacle.x + collision_square >= p.x + p.dx;
+	    // Collision y-axis
+	    bool collisionY = p.y + p.dy + collision_square >= obstacle.y &&
+	        obstacle.y + collision_square >= p.y + p.dy;
+	    // Collision only if on both axes
+	    if (collisionX && collisionY) {
+	    	return true;
+	    }
+		}
+	}
+	return false;
+}
+
+// void A3::collide(Player &p, char dir) {
+// 	if (dir == 'x') {
+// 		if (checkCollision(p)) p.dx = 0.0f;
+// 	}
+// 	if (dir == 'y') {
+// 		if (checkCollision(p)) p.dy = 0.0f;
+// 	}
+// }
+
 //----------------------------------------------------------------------------------------
 /*
  * Called once per frame, before guiLogic().
@@ -604,7 +673,9 @@ void A3::appLogic()
 
 	// handle character movement
 	if (keyLeftActive || keyRightActive || keyUpActive || keyDownActive) {
-		player1.move();
+		player1.move(checkCollision(player1));
+		// collide(player1, 'x');
+		// collide(player1, 'y');
 	}
 }
 
@@ -914,13 +985,41 @@ void A3::redo() {
 void A3::draw() {
 	glEnable( GL_DEPTH_TEST );
 
+	// renderShadows();
+
 	renderGrid();
 	renderFloor();
+	
+	// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	// glBindTexture(GL_TEXTURE_2D, shadowTexture);
 	renderObstacles();
-
 	renderSceneGraph(*m_rootNode);
 
 	glDisable( GL_DEPTH_TEST );
+}
+
+void A3::renderShadows() {
+	mat4 shadowP = ortho<float>(-10.0f, 10.0f, -10.0f, 10.0f, -10.0f, 1000.0f);
+	mat4 shadowV = lookAt(m_light.position, glm::vec3(0,0,0), glm::vec3(0,1,0));
+	shadowV = translate(shadowV, vec3( -float(DIM)/2.0f, 0, -float(DIM)/2.0f ));
+	lightSpaceMatrix = shadowP * shadowV;
+	glViewport(0, 0, 1024, 1024);
+	glBindFramebuffer(GL_FRAMEBUFFER, shadowFrameBuffer);
+		glClear(GL_DEPTH_BUFFER_BIT);
+
+		depth_shader.enable();
+		  	// render obstacles
+		  	glBindVertexArray(m_cube_vao);
+				GLint location = depth_shader.getUniformLocation("PVM");
+				glUniformMatrix4fv(location, 1, GL_FALSE, value_ptr(lightSpaceMatrix));
+				glDrawArrays(GL_TRIANGLES, 0, 36 * obstacles.size());
+				glBindVertexArray(0);
+				// render character... TODO
+		depth_shader.disable();
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glViewport(0, 0, m_framebufferWidth, m_framebufferHeight);
 }
 
 //----------------------------------------------------------------------------------------
@@ -998,7 +1097,10 @@ void A3::renderFloor() {
 }
 
 void A3::renderObstacles() {
+	// glActiveTexture(GL_TEXTURE0 + 0);
 	glBindTexture(GL_TEXTURE_2D, obstacle_texture);
+	// glActiveTexture(GL_TEXTURE0 + 1);
+	// glBindTexture(GL_TEXTURE_2D, shadowTexture);
 	glBindVertexArray(m_cube_vao);
 
 	m_tex_shader.enable();
@@ -1006,6 +1108,10 @@ void A3::renderObstacles() {
 		GLint location = m_tex_shader.getUniformLocation("PVM");
 		mat4 PVM = m_perpsective * m_view;
 		glUniformMatrix4fv(location, 1, GL_FALSE, value_ptr(PVM));
+
+		// location = shadow_shader.getUniformLocation("lightMatrix");
+		// glUniformMatrix4fv(location, 1, GL_FALSE, value_ptr(lightSpaceMatrix));
+
 		glDrawArrays(GL_TRIANGLES, 0, 36 * obstacles.size());
 	m_tex_shader.disable();
 
@@ -1239,15 +1345,19 @@ bool A3::keyInputEvent (
 	if( action == GLFW_RELEASE ) {
 		if(key == GLFW_KEY_LEFT) {
 			keyLeftActive = false;
+			player1.removeDirection(1);
 		}
 		if(key == GLFW_KEY_RIGHT) {
 			keyRightActive = false;
+			player1.removeDirection(3);
 		}
 		if(key == GLFW_KEY_UP) {
 			keyUpActive = false;
+			player1.removeDirection(2);
 		}
 		if(key == GLFW_KEY_DOWN) {
 			keyDownActive = false;
+			player1.removeDirection(0);
 		}
 	}
 

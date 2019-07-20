@@ -83,6 +83,7 @@ protected:
 	void initGrid();
 	void initFloor();
 	void initObstacles();
+	void initShadows();
 	GLuint createTexture(std::string filename);
 	void resetPosition();
 	void resetRotation();
@@ -94,6 +95,7 @@ protected:
 	void renderGrid();
 	void renderFloor();
 	void renderObstacles();
+	void renderShadows();
 	void drawNodes(const SceneNode *node, glm::mat4 t);
 	void pickNode();
 	JointNode* bfsJoint(SceneNode * root, unsigned int id);
@@ -120,12 +122,21 @@ protected:
 	std::vector<Obstacle> obstacles;
 	ShaderProgram m_tex_shader;
 
+	// shadow mapping
+	glm::mat4 lightSpaceMatrix;
+	GLuint shadowFrameBuffer;
+	GLuint shadowTexture;
+	ShaderProgram shadow_shader;
+	ShaderProgram depth_shader;
+
 	// player1
 	Player player1;
 	bool keyLeftActive;
 	bool keyRightActive;
 	bool keyUpActive;
 	bool keyDownActive;
+	bool checkCollision(Player &p);
+	// void collide(Player &p, char dir);
 
 	//-- GL resources for mesh geometry data:
 	GLuint m_vao_meshData;

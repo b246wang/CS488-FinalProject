@@ -9,15 +9,20 @@
 
 class Player {
 public:
-    Player(glm::vec3 p);
-    void move();
+    Player(float pos_x, float pos_y);
+    void move(bool hasCollision);
     glm::mat4 setDirection(int d);
+    void removeDirection(int d);
     void setRootNode(SceneNode * n);
     void setJoints(JointNode * neck, JointNode * l, JointNode * r);
 
-    int direction; // 0: south, 1: west, 2: north, 3: east
+    float x;
+    float y;
+    float dx;
+    float dy;
+    float speed; // 1.0
     glm::mat4 currRot;
-    int speed;
+    
     double neckRotation;
     double leftThighRotation;
     double rightThighRotation;
@@ -28,5 +33,4 @@ public:
     JointNode * neckJoint;
     JointNode * leftThighJoint;
     JointNode * rightThighJoint;
-    glm::vec3 position;
 };
