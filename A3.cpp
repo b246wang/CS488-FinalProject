@@ -12,6 +12,7 @@ using namespace std;
 
 #include <iostream>
 #include <string.h>
+#include <cmath>
 #include <imgui/imgui.h>
 
 #include <glm/gtc/type_ptr.hpp>
@@ -23,7 +24,11 @@ using namespace glm;
 
 static const size_t DIM = 10;
 static const float cube_h = 1.0f;
+static const float floor_height = 0.01f;
 static const float collision_square = 0.92f;
+static const float water_collision_square = 0.51f;
+static const int balloon_lifetime = 150;
+static const float water_speed = 0.5f;
 static const vec2 cubeUVs[] = {
 	vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
 	vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
@@ -38,6 +43,9 @@ static const vec2 cubeUVs[] = {
 	vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
 	vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f)
 };
+static const string balloonFileName = "Assets/balloon.lua";
+static const string waterFileName = "Assets/water.lua";
+static const string p2FileName = "Assets/player2.lua";
 static bool show_gui = true;
 static const float TranslateFactor = 200.0f;
 static const float JointRotateFactor = 15.0f;
@@ -60,7 +68,8 @@ A3::A3(const std::string & luaSceneFile)
 	  m_grid_vbo(0),
 	  m_floor_vao(0),
 	  m_floor_vbo(0),
-	  player1(0.0f, 0.0f)
+	  player1(0.0f, 0.0f),
+	  player2(8.0f, 8.0f)
 {
 
 }
@@ -109,7 +118,7 @@ void A3::resetAll() {
 
 void A3::initVar()
 {
-	// player 1
+	// player1
 	SceneNode * p1_rootNode = m_rootNode.get();
 	player1.setRootNode(p1_rootNode);
 	player1.setJoints(
@@ -120,6 +129,14 @@ void A3::initVar()
 	keyRightActive = false;
 	keyUpActive = false;
 	keyDownActive = false;
+
+	// player2
+	SceneNode * p2_rootNode = m_p2Node.get();
+	player2.setRootNode(p2_rootNode);
+	player2.setJoints(
+		bfsJoint(p2_rootNode, "neckJoint"), 
+		bfsJoint(p2_rootNode, "leftThighJoint"), 
+		bfsJoint(p2_rootNode, "rightThighJoint"));
 
 	do_picking = false;
 	mouseLeftActive = false;
@@ -245,8 +262,8 @@ void A3::initGrid() {
 void A3::initFloor()
 {
 	vec3 floorVertices[] = {
-		vec3(0, 0, 0), vec3(DIM, 0, 0), vec3(0, 0, DIM),
-		vec3(0, 0, DIM), vec3(DIM, 0, 0), vec3(DIM, 0, DIM)
+		vec3(0, floor_height, 0), vec3(DIM, floor_height, 0), vec3(0, floor_height, DIM),
+		vec3(0, floor_height, DIM), vec3(DIM, floor_height, 0), vec3(DIM, floor_height, DIM)
 	};
 
 	vec2 floorUVVertices[] = {
@@ -394,6 +411,20 @@ void A3::processLuaSceneFile(const std::string & filename) {
 	m_rootNode = std::shared_ptr<SceneNode>(import_lua(filename));
 	if (!m_rootNode) {
 		std::cerr << "Could Not Open " << filename << std::endl;
+	}
+	m_p2Node = std::shared_ptr<SceneNode>(import_lua(p2FileName));
+	if (!m_p2Node) {
+		std::cerr << "Could Not Open " << p2FileName << std::endl;
+	}
+
+	m_balloonNode = std::shared_ptr<SceneNode>(import_lua(balloonFileName));
+	if (!m_balloonNode) {
+		std::cerr << "Could Not Open " << balloonFileName << std::endl;
+	}
+
+	m_waterNode = std::shared_ptr<SceneNode>(import_lua(waterFileName));
+	if (!m_waterNode) {
+		std::cerr << "Could Not Open " << waterFileName << std::endl;
 	}
 }
 
@@ -652,6 +683,90 @@ bool A3::checkCollision(Player &p) {
 	return false;
 }
 
+void A3::waterCollision(WaterDamage &w) {
+	// water stops at obstacle
+	for (Obstacle &obstacle: obstacles) {
+		if (!obstacle.destroyed) {
+			if (!w.right_blocked) {
+				bool collisionX = w.x + w.curr_power >= obstacle.x &&
+	        	obstacle.x + collision_square >= w.x;
+		    bool collisionY = w.y >= obstacle.y && obstacle.y + collision_square >= w.y;
+		    if (collisionX && collisionY) {
+		    	w.right_blocked = true;
+		    }
+			}
+			if (!w.left_blocked) {
+				bool collisionX = w.x + collision_square >= obstacle.x &&
+	        	obstacle.x + collision_square >= w.x + water_speed - w.curr_power;
+		    bool collisionY = w.y >= obstacle.y && obstacle.y + collision_square >= w.y;
+		    if (collisionX && collisionY) {
+		    	w.left_blocked = true;
+		    }
+			}
+			if (!w.down_blocked) {
+				bool collisionX = w.x >= obstacle.x && obstacle.x + collision_square >= w.x;
+		    bool collisionY = w.y + w.curr_power >= obstacle.y && 
+		    		obstacle.y + collision_square >= w.y;
+		    if (collisionX && collisionY) {
+		    	w.down_blocked = true;
+		    }
+			}
+			if (!w.up_blocked) {
+				bool collisionX = w.x >= obstacle.x && obstacle.x + collision_square >= w.x;
+		    bool collisionY = w.y + collision_square >= obstacle.y && 
+		    		obstacle.y + collision_square >= w.y + water_speed - w.curr_power;
+		    if (collisionX && collisionY) {
+		    	w.up_blocked = true;
+		    }
+			}
+		}
+	}
+
+	// water damage touches player
+	bool waterRightX = w.x + w.curr_power >= player1.x &&
+  	player1.x + water_collision_square >= w.x;
+  bool waterRightY = w.y + water_collision_square >= player1.y && 
+  	player1.y + water_collision_square >= w.y;
+  if (waterRightX && waterRightY) {
+  	player1.setDead();
+  }
+  bool waterLeftX = w.x + water_collision_square >= player1.x &&
+  	player1.x + water_collision_square >= w.x + water_speed - w.curr_power;
+  bool waterLeftY = w.y + water_collision_square >= player1.y && 
+  	player1.y + water_collision_square >= w.y;
+  if (waterLeftX && waterLeftY) {
+  	player1.setDead();
+  }
+  bool waterDownX = w.x + water_collision_square >= player1.x &&
+  	player1.x + water_collision_square >= w.x;
+  bool waterDownY = w.y + w.curr_power >= player1.y && 
+  	player1.y + water_collision_square >= w.y;
+  if (waterDownX && waterDownY) {
+  	player1.setDead();
+  }
+  bool waterUpX = w.x + water_collision_square >= player1.x &&
+  	player1.x + water_collision_square >= w.x;
+  bool waterUpY = w.y + water_collision_square >= player1.y && 
+  	player1.y + water_collision_square >= w.y + water_speed - w.curr_power;
+  if (waterUpX && waterUpY) {
+  	player1.setDead();
+  }
+}
+
+void A3::pushWaterBalloon(float x, float y, float power) {
+	for (WaterBalloon &balloon : waterBalloons) {
+		if (balloon.x == x && balloon.y == y) {
+			return;
+		}
+	}
+	for (Obstacle &obstacle : obstacles) {
+		if (obstacle.x == x && obstacle.y == y) {
+			return;
+		}
+	}
+	waterBalloons.push_back(WaterBalloon(x, y, balloon_lifetime, power));
+}
+
 // void A3::collide(Player &p, char dir) {
 // 	if (dir == 'x') {
 // 		if (checkCollision(p)) p.dx = 0.0f;
@@ -676,6 +791,29 @@ void A3::appLogic()
 		player1.move(checkCollision(player1));
 		// collide(player1, 'x');
 		// collide(player1, 'y');
+	}
+
+	if (keyWActive || keyAActive || keySActive || keyDActive) {
+		player2.move(checkCollision(player2));
+	}
+
+	// decrease water balloon lifetime
+	if (waterBalloons.size() > 0 && waterBalloons.front().lifetime <= 0) {
+		WaterBalloon b = waterBalloons.front();
+		waterDamages.push_back(WaterDamage(b.x, b.y, 80, b.power));
+		waterBalloons.erase(waterBalloons.begin());
+	}
+	for (WaterBalloon &balloon : waterBalloons) {
+		balloon.lifetime -= 1;
+	}
+
+	// decrease water damage lifetime
+	if (waterDamages.size() > 0 && waterDamages.front().lifetime <= 0) {
+		waterDamages.erase(waterDamages.begin());
+	}
+	for (WaterDamage &w : waterDamages) {
+		waterCollision(w);
+		w.lifetime -= 1;
 	}
 }
 
@@ -995,6 +1133,14 @@ void A3::draw() {
 	renderObstacles();
 	renderSceneGraph(*m_rootNode);
 
+	for (WaterBalloon &b : waterBalloons) {
+		renderBalloon(*m_balloonNode, b);
+	}
+
+	for (WaterDamage &w : waterDamages) {
+		renderWater(*m_waterNode, w);
+	}
+
 	glDisable( GL_DEPTH_TEST );
 }
 
@@ -1030,6 +1176,44 @@ void A3::renderSceneGraph(const SceneNode & root) {
 
 	mat4 root_trans = root.trans;
 	drawNodes(&root, m_trans * root_trans * m_rot * inverse(root_trans));
+
+	glBindVertexArray(0);
+	CHECK_GL_ERRORS;
+}
+
+void A3::renderBalloon(const SceneNode & root, WaterBalloon &b) {
+	// Bind the VAO once here, and reuse for all GeometryNode rendering below.
+	glBindVertexArray(m_vao_meshData);
+	drawNodes(&root, b.trans);
+
+	glBindVertexArray(0);
+	CHECK_GL_ERRORS;
+}
+
+void A3::renderWater(const SceneNode &root, WaterDamage &w) {
+	// Bind the VAO once here, and reuse for all GeometryNode rendering below.
+	glBindVertexArray(m_vao_meshData);
+
+	if (w.curr_power < w.power) {
+		if (!w.right_blocked) {
+			w.trans1[0].x += water_speed;
+		}
+		if (!w.left_blocked) {
+			w.trans2[0].x -= water_speed;
+		}
+		if (!w.down_blocked) {
+			w.trans3[2].z += water_speed;
+		}
+		if (!w.up_blocked) {
+			w.trans4[2].z -= water_speed;
+		}
+		w.curr_power += water_speed;
+	}
+
+	drawNodes(&root, w.trans1); // right
+	drawNodes(&root, w.trans2); // left
+	drawNodes(&root, w.trans3); // down
+	drawNodes(&root, w.trans4); // up
 
 	glBindVertexArray(0);
 	CHECK_GL_ERRORS;
@@ -1305,12 +1489,6 @@ bool A3::keyInputEvent (
 		if( key == GLFW_KEY_O ) {
 			resetRotation();
 		}
-		if( key == GLFW_KEY_S ) {
-			resetJoints();
-		}
-		if( key == GLFW_KEY_A ) {
-			resetAll();
-		}
 		if( key == GLFW_KEY_U ) {
 			undo();
 		}
@@ -1338,6 +1516,27 @@ bool A3::keyInputEvent (
 		if(key == GLFW_KEY_DOWN) {
 			keyDownActive = true;
 			m_rot = player1.setDirection(0);
+		}
+		if(key == GLFW_KEY_SPACE) {
+			if (waterBalloons.size() < player1.balloonNumber) {
+				pushWaterBalloon(round(player1.x), round(player1.y), player1.power);
+			}
+		}
+		if( key == GLFW_KEY_A ) {
+			keyAActive = true;
+			p2_rot = player2.setDirection(1);
+		}
+		if( key == GLFW_KEY_D ) {
+			keyDActive = true;
+			p2_rot = player2.setDirection(3);
+		}
+		if(key == GLFW_KEY_W) {
+			keyWActive = true;
+			m_rot = player2.setDirection(2);
+		}
+		if(key == GLFW_KEY_S) {
+			keySActive = true;
+			m_rot = player2.setDirection(0);
 		}
 		eventHandled = true;
 	}

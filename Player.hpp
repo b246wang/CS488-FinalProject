@@ -10,6 +10,7 @@
 class Player {
 public:
     Player(float pos_x, float pos_y);
+    void setDead();
     void move(bool hasCollision);
     glm::mat4 setDirection(int d);
     void removeDirection(int d);
@@ -21,6 +22,9 @@ public:
     float dx;
     float dy;
     float speed; // 1.0
+    float power;
+    bool dead;
+    int balloonNumber;
     glm::mat4 currRot;
     
     double neckRotation;
@@ -33,4 +37,8 @@ public:
     JointNode * neckJoint;
     JointNode * leftThighJoint;
     JointNode * rightThighJoint;
+
+private:
+    // The number of death.
+    static unsigned int deadTime;
 };

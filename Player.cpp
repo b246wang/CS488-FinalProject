@@ -31,11 +31,17 @@ static const mat4 up_rot = mat4(
     0.0f, 0.0f, 0.0f, 1.0f
 );
 
+// Static class variable
+unsigned int Player::deadTime = 1;
+
 Player::Player(float pos_x, float pos_y)
   : x(pos_x),
     y(pos_y),
     dx(0.0f),
     dy(0.0f),
+    dead(false),
+    balloonNumber(4),
+    power(5.0f),
     currRot(mat4(1.0f)),
     neckRotation(0.0),
     leftThighRotation(0.0),
@@ -70,6 +76,12 @@ Player::Player(float pos_x, float pos_y)
     Keyframe frame3(0.3, jr3);
     moveAnimation.keyframes.push_back(frame3);
     // cout << "moveAnimation 1st: " << moveAnimation.keyframes.front().timestamp << endl;
+}
+
+void Player::setDead() {
+    dead = true;
+    cout << "player dead: " << deadTime << endl;
+    deadTime++;
 }
 
 mat4 Player::setDirection(int d) {
