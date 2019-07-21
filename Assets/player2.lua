@@ -3,7 +3,7 @@ rootNode = gr.node('root')
 rootNode:scale(0.5, 0.5, 0.5)
 rootNode:translate(0.5, 0.9, 0.5)
 
-skinColor = gr.material({0.827, 0.827 0.827}, {0.1, 0.1, 0.1}, 10)
+skinColor = gr.material({0.827, 0.827, 0.827}, {0.1, 0.1, 0.1}, 10)
 torsoColor = gr.material({0.2588, 0.5255, 0.9568}, {0.1, 0.1, 0.1}, 10)
 noseColor = gr.material({0.6196, 0.1176, 0.3961}, {0.1, 0.1, 0.1}, 10)
 footColor = gr.material({0.1019, 0.0509, 0.0}, {0.1, 0.1, 0.1}, 10)
