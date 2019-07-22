@@ -71,6 +71,10 @@ struct WaterDamage {
 	float x;
 	float y;
 	float curr_power;
+	float curr_left_power;
+	float curr_right_power;
+	float curr_up_power;
+	float curr_down_power;
 	float power;
 	glm::mat4 trans1; // right
 	glm::mat4 trans2; // left
@@ -96,6 +100,11 @@ struct WaterDamage {
 		trans4 = trans1;
 		trans4[2].z = 0.0f;
 		curr_power = 1.0f;
+		curr_left_power = 1.0f;
+		curr_right_power = 1.0f;
+		curr_up_power = 1.0f;
+		curr_down_power = 1.0f;
+
 		right_blocked = false;
 		left_blocked = false;
 		down_blocked = false;
@@ -207,6 +216,7 @@ protected:
 
 	// water balloon
 	void pushWaterBalloon(std::vector<WaterBalloon> &wbs, float x, float y, float power);
+	void popAnotherBalloon(WaterDamage &w, std::vector<WaterBalloon> &wbs, int position);
 	void waterCollision(WaterDamage &w);
 	std::shared_ptr<SceneNode> m_balloonNode;
 	std::shared_ptr<SceneNode> m_waterNode;

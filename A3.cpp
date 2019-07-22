@@ -28,7 +28,7 @@ static const float floor_height = 0.01f;
 static const float collision_square = 0.92f;
 static const float water_collision_square = 0.51f;
 static const int balloon_lifetime = 150;
-static const int water_lifetime = 40;
+static const int water_lifetime = 30;
 static const float water_speed = 0.5f;
 static const vec2 cubeUVs[] = {
 	vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
@@ -690,34 +690,87 @@ bool A3::checkCollision(Player &p) {
 
 void A3::killPlayer(WaterDamage &w, Player &p) {
 	// water damage touches p
-	bool waterRightX = w.x + w.curr_power >= p.x &&
+	bool waterRightX = w.x + w.curr_right_power > p.x + water_collision_square &&
   	p.x + water_collision_square >= w.x;
   bool waterRightY = w.y + water_collision_square >= p.y && 
   	p.y + water_collision_square >= w.y;
   if (waterRightX && waterRightY) {
   	p.setDead();
+  	return;
   }
   bool waterLeftX = w.x + water_collision_square >= p.x &&
-  	p.x + water_collision_square >= w.x + water_speed - w.curr_power;
+  	p.x >= w.x + water_speed - w.curr_left_power;
   bool waterLeftY = w.y + water_collision_square >= p.y && 
   	p.y + water_collision_square >= w.y;
   if (waterLeftX && waterLeftY) {
   	p.setDead();
+  	return;
   }
   bool waterDownX = w.x + water_collision_square >= p.x &&
   	p.x + water_collision_square >= w.x;
-  bool waterDownY = w.y + w.curr_power >= p.y && 
+  bool waterDownY = w.y + w.curr_down_power >= p.y + 0.2f && 
   	p.y + water_collision_square >= w.y;
   if (waterDownX && waterDownY) {
   	p.setDead();
+  	return;
   }
   bool waterUpX = w.x + water_collision_square >= p.x &&
   	p.x + water_collision_square >= w.x;
   bool waterUpY = w.y + water_collision_square >= p.y && 
-  	p.y + water_collision_square >= w.y + water_speed - w.curr_power;
+  	p.y >= w.y + water_speed - w.curr_up_power;
   if (waterUpX && waterUpY) {
   	p.setDead();
+  	return;
   }
+}
+
+void A3::popAnotherBalloon(WaterDamage &w, vector<WaterBalloon> &wbs, int position) {
+	WaterBalloon p = wbs.at(position);
+	if (w.curr_power < w.power) {
+		if (p.y == w.y && p.x > w.x && !w.right_blocked) {
+			bool waterRightX = w.x + w.curr_power >= p.x &&
+		  	p.x + collision_square >= w.x;
+		  if (waterRightX) {
+		  	w.right_blocked = true;
+		  	waterDamages.push_back(WaterDamage(p.x, p.y, water_lifetime, p.power));
+		  	wbs.erase(wbs.begin() + position);
+		  }
+		  return;
+		}
+		
+		if (p.y == w.y && p.x < w.x && !w.left_blocked) {
+		  bool waterLeftX = w.x + collision_square >= p.x &&
+		  	p.x + collision_square >= w.x + water_speed - w.curr_power;
+		  if (waterLeftX) {
+		  	w.left_blocked = true;
+		  	waterDamages.push_back(WaterDamage(p.x, p.y, water_lifetime, p.power));
+		  	wbs.erase(wbs.begin() + position);
+		  }
+		  return;
+		}
+
+		if (p.x == w.x && p.y > w.y && !w.down_blocked) {
+		  bool waterDownY = w.y + w.curr_power >= p.y && 
+		  	p.y + collision_square >= w.y;
+		  if (waterDownY) {
+		  	w.down_blocked = true;
+		  	waterDamages.push_back(WaterDamage(p.x, p.y, water_lifetime, p.power));
+		  	wbs.erase(wbs.begin() + position);
+		  }
+		  return;
+		}
+
+		if (p.x == w.x && p.y < w.y && !w.up_blocked) {
+		  bool waterUpY = w.y + collision_square >= p.y && 
+		  	p.y + collision_square >= w.y + water_speed - w.curr_power;
+		  if (waterUpY) {
+		  	w.up_blocked = true;
+		  	waterDamages.push_back(WaterDamage(p.x, p.y, water_lifetime, p.power));
+		  	wbs.erase(wbs.begin() + position);
+		  }
+		  return;
+		}
+	}
 }
 
 void A3::waterCollision(WaterDamage &w) {
@@ -757,6 +810,14 @@ void A3::waterCollision(WaterDamage &w) {
 		    }
 			}
 		}
+	}
+
+	// water pops another balloon
+	for (int i = 0; i < waterBalloons.size(); i++) {
+		popAnotherBalloon(w, waterBalloons, i);
+	}
+	for (int j = 0; j < p2_waterBalloons.size(); j++) {
+		popAnotherBalloon(w, p2_waterBalloons, j);
 	}
 
 	// check if water damage touches players
@@ -1233,15 +1294,19 @@ void A3::renderWater(const SceneNode &root, WaterDamage &w) {
 	if (w.curr_power < w.power) {
 		if (!w.right_blocked) {
 			w.trans1[0].x += water_speed;
+			w.curr_right_power += water_speed;
 		}
 		if (!w.left_blocked) {
 			w.trans2[0].x -= water_speed;
+			w.curr_left_power += water_speed;
 		}
 		if (!w.down_blocked) {
 			w.trans3[2].z += water_speed;
+			w.curr_down_power += water_speed;
 		}
 		if (!w.up_blocked) {
 			w.trans4[2].z -= water_speed;
+			w.curr_up_power += water_speed;
 		}
 		w.curr_power += water_speed;
 	}
