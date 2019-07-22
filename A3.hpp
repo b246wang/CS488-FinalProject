@@ -192,6 +192,7 @@ protected:
 	bool keyUpActive;
 	bool keyDownActive;
 	bool checkCollision(Player &p);
+	void killPlayer(WaterDamage &w, Player &p);
 	// void collide(Player &p, char dir);
 
 	// player2
@@ -202,13 +203,15 @@ protected:
 	bool keySActive;
 	bool keyAActive;
 	bool keyDActive;
+	void renderPlayer2(const SceneNode &node);
 
 	// water balloon
-	void pushWaterBalloon(float x, float y, float power);
+	void pushWaterBalloon(std::vector<WaterBalloon> &wbs, float x, float y, float power);
 	void waterCollision(WaterDamage &w);
 	std::shared_ptr<SceneNode> m_balloonNode;
 	std::shared_ptr<SceneNode> m_waterNode;
 	std::vector<WaterBalloon> waterBalloons;
+	std::vector<WaterBalloon> p2_waterBalloons;
 	std::vector<WaterDamage> waterDamages;
 
 	//-- GL resources for mesh geometry data:

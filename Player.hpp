@@ -40,5 +40,5 @@ public:
 
 private:
     // The number of death.
-    static unsigned int deadTime;
+    unsigned int deadTime;
 };

@@ -31,15 +31,13 @@ static const mat4 up_rot = mat4(
     0.0f, 0.0f, 0.0f, 1.0f
 );
 
-// Static class variable
-unsigned int Player::deadTime = 1;
-
 Player::Player(float pos_x, float pos_y)
   : x(pos_x),
     y(pos_y),
     dx(0.0f),
     dy(0.0f),
     dead(false),
+    deadTime(0),
     balloonNumber(4),
     power(5.0f),
     currRot(mat4(1.0f)),

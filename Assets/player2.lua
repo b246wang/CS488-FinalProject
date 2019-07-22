@@ -1,7 +1,7 @@
 -- Create the top level root node named 'root'.
-rootNode = gr.node('root')
+rootNode = gr.node('p2_root')
 rootNode:scale(0.5, 0.5, 0.5)
-rootNode:translate(0.5, 0.9, 0.5)
+rootNode:translate(8.5, 0.9, 8.5)
 
 skinColor = gr.material({0.827, 0.827, 0.827}, {0.1, 0.1, 0.1}, 10)
 torsoColor = gr.material({0.2588, 0.5255, 0.9568}, {0.1, 0.1, 0.1}, 10)
