@@ -70,7 +70,9 @@ A3::A3(const std::string & luaSceneFile)
 	  m_floor_vao(0),
 	  m_floor_vbo(0),
 	  player1(0.0f, 0.0f),
-	  player2(8.0f, 8.0f)
+	  player2(8.0f, 8.0f),
+	  n_frame(5),
+	  i_frame(0)
 {
 
 }
@@ -1226,6 +1228,16 @@ void A3::draw() {
 	for (WaterDamage &w : waterDamages) {
 		renderWater(*m_waterNode, w);
 	}
+
+	if(i_frame == 0) glAccum(GL_LOAD, 1.0 / n_frame);
+  else glAccum(GL_ACCUM, 1.0 / n_frame);
+  i_frame++;
+
+  if(i_frame >= n_frame) {
+    i_frame = 0;
+    glAccum(GL_RETURN, 1.0);
+    glSwapBuffers();
+  }
 
 	glDisable( GL_DEPTH_TEST );
 }

@@ -169,6 +169,9 @@ protected:
 	void undo();
 	void redo();
 
+	int n_frame;
+	int i_frame;
+
 	glm::mat4 m_perpsective;
 	glm::mat4 m_view;
 
