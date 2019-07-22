@@ -21,6 +21,7 @@ using namespace std;
 #include <queue>
 
 using namespace glm;
+using namespace irrklang;
 
 static const size_t DIM = 10;
 static const float cube_h = 1.0f;
@@ -70,9 +71,7 @@ A3::A3(const std::string & luaSceneFile)
 	  m_floor_vao(0),
 	  m_floor_vbo(0),
 	  player1(0.0f, 0.0f),
-	  player2(8.0f, 8.0f),
-	  n_frame(5),
-	  i_frame(0)
+	  player2(8.0f, 8.0f)
 {
 
 }
@@ -165,6 +164,9 @@ void A3::initVar()
  */
 void A3::init()
 {
+	engine = createIrrKlangDevice();
+	if (!engine) cout << "error starting sound engine...." << endl;
+
 	// Set the background colour.
 	glClearColor(0.85, 0.85, 0.85, 1.0);
 
@@ -735,6 +737,7 @@ void A3::popAnotherBalloon(WaterDamage &w, vector<WaterBalloon> &wbs, int positi
 		  if (waterRightX) {
 		  	w.right_blocked = true;
 		  	waterDamages.push_back(WaterDamage(p.x, p.y, water_lifetime, p.power));
+		  	engine->play2D(getAssetFilePath("splat.wav").c_str());
 		  	wbs.erase(wbs.begin() + position);
 		  }
 		  return;
@@ -746,6 +749,7 @@ void A3::popAnotherBalloon(WaterDamage &w, vector<WaterBalloon> &wbs, int positi
 		  if (waterLeftX) {
 		  	w.left_blocked = true;
 		  	waterDamages.push_back(WaterDamage(p.x, p.y, water_lifetime, p.power));
+		  	engine->play2D(getAssetFilePath("splat.wav").c_str());
 		  	wbs.erase(wbs.begin() + position);
 		  }
 		  return;
@@ -757,6 +761,7 @@ void A3::popAnotherBalloon(WaterDamage &w, vector<WaterBalloon> &wbs, int positi
 		  if (waterDownY) {
 		  	w.down_blocked = true;
 		  	waterDamages.push_back(WaterDamage(p.x, p.y, water_lifetime, p.power));
+		  	engine->play2D(getAssetFilePath("splat.wav").c_str());
 		  	wbs.erase(wbs.begin() + position);
 		  }
 		  return;
@@ -768,6 +773,7 @@ void A3::popAnotherBalloon(WaterDamage &w, vector<WaterBalloon> &wbs, int positi
 		  if (waterUpY) {
 		  	w.up_blocked = true;
 		  	waterDamages.push_back(WaterDamage(p.x, p.y, water_lifetime, p.power));
+		  	engine->play2D(getAssetFilePath("splat.wav").c_str());
 		  	wbs.erase(wbs.begin() + position);
 		  }
 		  return;
@@ -838,6 +844,7 @@ void A3::pushWaterBalloon(vector<WaterBalloon> &wbs, float x, float y, float pow
 			return;
 		}
 	}
+	engine->play2D(getAssetFilePath("bounce.wav").c_str());
 	wbs.push_back(WaterBalloon(x, y, balloon_lifetime, power));
 }
 
@@ -875,6 +882,7 @@ void A3::appLogic()
 	if (waterBalloons.size() > 0 && waterBalloons.front().lifetime <= 0) {
 		WaterBalloon b = waterBalloons.front();
 		waterDamages.push_back(WaterDamage(b.x, b.y, water_lifetime, b.power));
+		engine->play2D(getAssetFilePath("splat.wav").c_str());
 		waterBalloons.erase(waterBalloons.begin());
 	}
 	for (WaterBalloon &balloon : waterBalloons) {
@@ -884,6 +892,7 @@ void A3::appLogic()
 	if (p2_waterBalloons.size() > 0 && p2_waterBalloons.front().lifetime <= 0) {
 		WaterBalloon b = p2_waterBalloons.front();
 		waterDamages.push_back(WaterDamage(b.x, b.y, water_lifetime, b.power));
+		engine->play2D(getAssetFilePath("splat.wav").c_str());
 		p2_waterBalloons.erase(p2_waterBalloons.begin());
 	}
 	for (WaterBalloon &balloon : p2_waterBalloons) {
@@ -1204,6 +1213,7 @@ void A3::redo() {
  * Called once per frame, after guiLogic().
  */
 void A3::draw() {
+	// engine->play2D(getAssetFilePath("bell.wav").c_str());
 	glEnable( GL_DEPTH_TEST );
 
 	// renderShadows();
@@ -1228,16 +1238,6 @@ void A3::draw() {
 	for (WaterDamage &w : waterDamages) {
 		renderWater(*m_waterNode, w);
 	}
-
-	if(i_frame == 0) glAccum(GL_LOAD, 1.0 / n_frame);
-  else glAccum(GL_ACCUM, 1.0 / n_frame);
-  i_frame++;
-
-  if(i_frame >= n_frame) {
-    i_frame = 0;
-    glAccum(GL_RETURN, 1.0);
-    glSwapBuffers();
-  }
 
 	glDisable( GL_DEPTH_TEST );
 }

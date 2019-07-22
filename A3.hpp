@@ -12,6 +12,7 @@
 #include "Player.hpp"
 #include "Animation.hpp"
 #include "Keyframe.hpp"
+#include "irrklang/include/irrKlang.h"
 
 #include <glm/glm.hpp>
 #include <memory>
@@ -169,8 +170,7 @@ protected:
 	void undo();
 	void redo();
 
-	int n_frame;
-	int i_frame;
+	irrklang::ISoundEngine* engine;
 
 	glm::mat4 m_perpsective;
 	glm::mat4 m_view;

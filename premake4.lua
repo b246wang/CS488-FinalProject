@@ -6,11 +6,13 @@ includeDirList = {
     "../shared",
     "../shared/include",
     "../shared/gl3w",
-    "../shared/imgui"
+    "../shared/imgui",
+    "./irrKlang"
 }
 
 libDirectories = { 
-    "../lib"
+    "../lib",
+    "./irrKlang/bin/macosx-gcc"
 }
 
 
@@ -20,7 +22,8 @@ if os.get() == "macosx" then
         "imgui",
         "glfw3",
         "lua",
-        "lodepng"
+        "lodepng",
+        "irrKlang"
     }
 end
 
