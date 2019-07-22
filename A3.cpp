@@ -203,14 +203,16 @@ void A3::init()
 	initObstacles();
 	floor_texture = createTexture(getAssetFilePath("floor.png"));
 	obstacle_texture = createTexture(getAssetFilePath("obstacle.png"));
+	water_texture = createTexture(getAssetFilePath("water_tex.png"));
 
 	initPerspectiveMatrix();
 
 	initViewMatrix();
 
 	initLightSources();
-	// initShadows();
 
+	CHECK_GL_ERRORS;
+	// initShadows();
 
 	// Exiting the current scope calls delete automatically on meshConsolidator freeing
 	// all vertex data resources.  This is fine since we already copied this data to
@@ -564,6 +566,16 @@ void A3::mapVboDataToVertexShaderInputLocations()
 	glBindBuffer(GL_ARRAY_BUFFER, m_vbo_vertexNormals);
 	glVertexAttribPointer(m_normalAttribLocation, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
 
+	// bind water vbo
+	glGenBuffers( 1, &m_water_uv_vbo );
+	glBindBuffer( GL_ARRAY_BUFFER, m_water_uv_vbo );
+	glBufferData( GL_ARRAY_BUFFER, sizeof(vec2) * 36,
+		cubeUVs, GL_STATIC_DRAW );
+	GLint UVAttrib = m_shader.getAttribLocation( "vertexUV" );
+	glEnableVertexAttribArray( UVAttrib );
+	glVertexAttribPointer( UVAttrib, 2, GL_FLOAT, GL_FALSE, 0, nullptr );
+	glBindBuffer( GL_ARRAY_BUFFER, 0 );
+
 	//-- Unbind target, and restore default values:
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
@@ -649,8 +661,8 @@ void A3::uploadCommonSceneUniforms() {
 		glUniformMatrix4fv(location, 1, GL_FALSE, value_ptr(m_perpsective));
 		CHECK_GL_ERRORS;
 
-		location = m_shader.getUniformLocation("picking");
-		glUniform1i( location, do_picking ? 1 : 0 );
+		// location = m_shader.getUniformLocation("picking");
+		// glUniform1i( location, do_picking ? 1 : 0 );
 
 		if( !do_picking ) {
 			//-- Set LightSource uniform for the scene:
@@ -1293,7 +1305,20 @@ void A3::renderPlayer2(const SceneNode & node) {
 void A3::renderBalloon(const SceneNode & root, WaterBalloon &b) {
 	// Bind the VAO once here, and reuse for all GeometryNode rendering below.
 	glBindVertexArray(m_vao_meshData);
+	float alpha = (balloon_lifetime - b.lifetime) / float(balloon_lifetime);
+	alpha = alpha < 0.8 ? 0.8 : alpha;
+
+	m_shader.enable();
+		GLint location = m_shader.getUniformLocation("alpha");
+		glUniform1f( location, alpha);
+	m_shader.disable();
+
 	drawNodes(&root, b.trans);
+
+	m_shader.enable();
+		location = m_shader.getUniformLocation("alpha");
+		glUniform1f( location, 1.0 );
+	m_shader.disable();
 
 	glBindVertexArray(0);
 	CHECK_GL_ERRORS;
@@ -1301,7 +1326,15 @@ void A3::renderBalloon(const SceneNode & root, WaterBalloon &b) {
 
 void A3::renderWater(const SceneNode &root, WaterDamage &w) {
 	// Bind the VAO once here, and reuse for all GeometryNode rendering below.
+	glBindTexture(GL_TEXTURE_2D, water_texture);
 	glBindVertexArray(m_vao_meshData);
+	m_shader.enable();
+		GLint location = m_shader.getUniformLocation("useTexture");
+		glUniform1i( location, 1 );
+		location = m_shader.getUniformLocation("alpha");
+		glUniform1f( location, 0.5 );
+	m_shader.disable();
+	CHECK_GL_ERRORS;
 
 	if (w.curr_power < w.power) {
 		if (!w.right_blocked) {
@@ -1328,7 +1361,15 @@ void A3::renderWater(const SceneNode &root, WaterDamage &w) {
 	drawNodes(&root, w.trans3); // down
 	drawNodes(&root, w.trans4); // up
 
+	m_shader.enable();
+		location = m_shader.getUniformLocation("useTexture");
+		glUniform1i( location, 0 );
+		location = m_shader.getUniformLocation("alpha");
+		glUniform1f( location, 1.0 );
+	m_shader.disable();
+	CHECK_GL_ERRORS;
 	glBindVertexArray(0);
+	glBindTexture(GL_TEXTURE_2D, 0);
 	CHECK_GL_ERRORS;
 }
 

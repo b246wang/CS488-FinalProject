@@ -187,6 +187,7 @@ protected:
 	GLuint m_cube_uv_vbo;
 	GLuint floor_texture;
 	GLuint obstacle_texture;
+	GLuint water_texture;
 	std::vector<Obstacle> obstacles;
 	ShaderProgram m_tex_shader;
 
@@ -218,6 +219,7 @@ protected:
 	void renderPlayer2(const SceneNode &node);
 
 	// water balloon
+	GLuint m_water_uv_vbo;
 	void pushWaterBalloon(std::vector<WaterBalloon> &wbs, float x, float y, float power);
 	void popAnotherBalloon(WaterDamage &w, std::vector<WaterBalloon> &wbs, int position);
 	void waterCollision(WaterDamage &w);

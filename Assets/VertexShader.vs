@@ -3,6 +3,8 @@
 // Model-Space coordinates
 in vec3 position;
 in vec3 normal;
+in vec2 vertexUV;
+out vec2 UV;
 
 struct LightSource {
     vec3 position;
@@ -34,4 +36,5 @@ void main() {
 	vs_out.light = light;
 
 	gl_Position = Perspective * ModelView * vec4(position, 1.0);
+	UV = vertexUV;
 }

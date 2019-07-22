@@ -1,11 +1,14 @@
 #version 330
 
-uniform bool picking;
+uniform bool useTexture = false;
+uniform float alpha = 1.0;
 
 struct LightSource {
     vec3 position;
     vec3 rgbIntensity;
 };
+
+in vec2 UV;
 
 in VsOutFsIn {
 	vec3 position_ES; // Eye-space position
@@ -22,6 +25,8 @@ struct Material {
     float shininess;
 };
 uniform Material material;
+
+uniform sampler2D tex;
 
 // Ambient light intensity for each RGB component.
 uniform vec3 ambientIntensity;
@@ -55,9 +60,9 @@ vec3 phongModel(vec3 fragPosition, vec3 fragNormal) {
 }
 
 void main() {
-	if( picking ) {
-		fragColour = vec4(material.kd, 1.0);
+	if( useTexture ) {
+		fragColour = vec4(texture(tex, UV).rgb, alpha);
 	} else {
-		fragColour = vec4(phongModel(fs_in.position_ES, fs_in.normal_ES), 1.0);
+		fragColour = vec4(phongModel(fs_in.position_ES, fs_in.normal_ES), alpha);
 	}
 }
