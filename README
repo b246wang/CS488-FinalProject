@@ -7,25 +7,16 @@
 	- Completed and tested on lab machine: gl36.student.cs
 
 - Manual
-	- A message will appear above the "Framerate: xx" line if Undo/Redo cannot be performed
-	- rotate() in SceneNode now is a virtual function, overridden in JointNode
-	- Puppet structure: 15 joints (DOFs)
-		- RootNode
-			- torso
-				- neck, neckJoint
-					- head
-						- nose1, nose2, nose3
-						- leftEarNode, leftEarJoint, leftEar
-						- rightEarNode, rightEarJoint, rightEar
-				- leftUpperArmNode, leftUpperArmJoint, leftUpperArm
-					- leftForeArmNode, leftForeArmJoint, leftForeArm
-						- leftHandNode, leftHandJoint, leftHand
-				- rightUpperArmNode, rightUpperArmJoint, rightUpperArm
-					- rightForeArmNode, rightForeArmJoint, rightForeArm
-						- rightHandNode, rightHandJoint, rightHand
-				- leftThighNode, leftThighJoint, leftThigh
-					- leftCalfNode, leftCalfJoint, leftCalf
-						- leftFootNode, leftFootJoint, leftFoot
-				- rightThighNode, rightThighJoint, rightThigh
-					- rightCalfNode, rightCalfJoint, rightCalf
-						- rightFootNode, rightFootJoint, rightFoot
+	- Game rules will display when first entering the game
+	- Completed Objectives:
+		- Modeling the Scene
+		- UI
+		- Texture Mapping
+		- Sound (Synchronized)
+		- Static Collision Detection
+		- Dynamic Collision Detection
+		- Key-frame  Animation
+		- Transparency using Alpha Channel
+	- Not Completed Objectives:
+		- Shadow Mapping
+		- Motion Blur
