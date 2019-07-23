@@ -45,8 +45,23 @@ static const vec2 cubeUVs[] = {
 	vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
 	vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f)
 };
+static const vec2 meshCubeUVs[] = {
+	vec2(1.0f, 1.0f), vec2(0.0f, 1.0f), vec2(0.0f, 0.0f),
+	vec2(0.0f, 1.0f), vec2(1.0f, 1.0f), vec2(1.0f, 0.0f),
+	vec2(1.0f, 1.0f), vec2(0.0f, 1.0f), vec2(0.0f, 0.0f),
+	vec2(1.0f, 1.0f), vec2(0.0f, 1.0f), vec2(1.0f, 0.0f),
+	vec2(1.0f, 1.0f), vec2(0.0f, 1.0f), vec2(0.0f, 0.0f),
+	vec2(0.0f, 1.0f), vec2(1.0f, 1.0f), vec2(1.0f, 0.0f),
+	vec2(1.0f, 1.0f), vec2(0.0f, 1.0f), vec2(0.0f, 0.0f),
+	vec2(0.0f, 1.0f), vec2(1.0f, 1.0f), vec2(1.0f, 0.0f),
+	vec2(1.0f, 1.0f), vec2(0.0f, 1.0f), vec2(0.0f, 0.0f),
+	vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f),
+	vec2(1.0f, 1.0f), vec2(0.0f, 1.0f), vec2(0.0f, 0.0f),
+	vec2(1.0f, 1.0f), vec2(0.0f, 1.0f), vec2(1.0f, 0.0f),
+};
 static const string balloonFileName = "Assets/balloon.lua";
 static const string waterFileName = "Assets/water.lua";
+static const string blockFileName = "Assets/block.lua";
 static const string p2FileName = "Assets/player2.lua";
 static bool show_gui = true;
 static const float TranslateFactor = 200.0f;
@@ -66,12 +81,10 @@ A3::A3(const std::string & luaSceneFile)
 	  m_vbo_vertexNormals(0),
 	  m_vao_arcCircle(0),
 	  m_vbo_arcCircle(0),
-	  m_grid_vao(0),
-	  m_grid_vbo(0),
 	  m_floor_vao(0),
 	  m_floor_vbo(0),
 	  player1(0.0f, 0.0f),
-	  player2(8.0f, 8.0f)
+	  player2(9.0f, 9.0f)
 {
 
 }
@@ -105,7 +118,7 @@ void A3::resetJoints() {
 			j->m_joint_x.curr = j->m_joint_x.init;
 			j->m_joint_y.curr = j->m_joint_y.init;
 		}
-		
+
 		for (SceneNode * child : n->children) {
 			q.push(child);
 		}
@@ -136,8 +149,8 @@ void A3::initVar()
 	SceneNode * p2_rootNode = m_p2Node.get();
 	player2.setRootNode(p2_rootNode);
 	player2.setJoints(
-		bfsJoint(p2_rootNode, "neckJoint"), 
-		bfsJoint(p2_rootNode, "leftThighJoint"), 
+		bfsJoint(p2_rootNode, "neckJoint"),
+		bfsJoint(p2_rootNode, "leftThighJoint"),
 		bfsJoint(p2_rootNode, "rightThighJoint"));
 	keyAActive = false;
 	keySActive = false;
@@ -198,12 +211,15 @@ void A3::init()
 	mapVboDataToVertexShaderInputLocations();
 
 	initVar();
-	initGrid();
 	initFloor();
 	initObstacles();
-	floor_texture = createTexture(getAssetFilePath("floor.png"));
-	obstacle_texture = createTexture(getAssetFilePath("obstacle.png"));
+	initBlocks();
+
+	floor_texture = createTexture(getAssetFilePath("wood_floor.png"));
+	obstacle_texture = createTexture(getAssetFilePath("tree_cube.png"));
 	water_texture = createTexture(getAssetFilePath("water_tex.png"));
+	wood_cube_texture = createTexture(getAssetFilePath("wood_cube.png"));
+	xmas_cube_texture = createTexture(getAssetFilePath("chrix_cube.png"));
 
 	initPerspectiveMatrix();
 
@@ -218,56 +234,6 @@ void A3::init()
 	// all vertex data resources.  This is fine since we already copied this data to
 	// VBOs on the GPU.  We have no use for storing vertex data on the CPU side beyond
 	// this point.
-}
-
-void A3::initGrid() {
-	size_t sz = 3 * 2 * 2 * (DIM+3);
-
-	float *verts = new float[ sz ];
-	size_t ct = 0;
-	for( int idx = 0; idx < DIM+3; ++idx ) {
-		verts[ ct ] = -1;
-		verts[ ct+1 ] = 0;
-		verts[ ct+2 ] = idx-1;
-		verts[ ct+3 ] = DIM+1;
-		verts[ ct+4 ] = 0;
-		verts[ ct+5 ] = idx-1;
-		ct += 6;
-
-		verts[ ct ] = idx-1;
-		verts[ ct+1 ] = 0;
-		verts[ ct+2 ] = -1;
-		verts[ ct+3 ] = idx-1;
-		verts[ ct+4 ] = 0;
-		verts[ ct+5 ] = DIM+1;
-		ct += 6;
-	}
-
-	// Create the vertex array to record buffer assignments.
-	glGenVertexArrays( 1, &m_grid_vao );
-	glBindVertexArray( m_grid_vao );
-
-	// Create the cube vertex buffer
-	glGenBuffers( 1, &m_grid_vbo );
-	glBindBuffer( GL_ARRAY_BUFFER, m_grid_vbo );
-	glBufferData( GL_ARRAY_BUFFER, sz*sizeof(float),
-		verts, GL_STATIC_DRAW );
-
-	// Specify the means of extracting the position values properly.
-	GLint posAttrib = m_shader.getAttribLocation( "position" );
-	glEnableVertexAttribArray( posAttrib );
-	glVertexAttribPointer( posAttrib, 3, GL_FLOAT, GL_FALSE, 0, nullptr );
-
-	// Reset state to prevent rogue code from messing with *my* 
-	// stuff!
-	glBindVertexArray( 0 );
-	glBindBuffer( GL_ARRAY_BUFFER, 0 );
-	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
-
-	// OpenGL has the buffer now, there's no need for us to keep a copy.
-	delete [] verts;
-
-	CHECK_GL_ERRORS;
 }
 
 void A3::initFloor()
@@ -317,39 +283,57 @@ void A3::initFloor()
 	CHECK_GL_ERRORS;
 }
 
+void A3::initBlocks() {
+	for (int i = 1; i < 9; i++) {
+		for (int j = 1; j < 9; j++) {
+			if (i == j || i + j == 9) {
+				blocks.push_back(Block(float(i), float(j), 1));
+			} else {
+				blocks.push_back(Block(float(i), float(j)));
+			}
+		}
+	}
+}
+
 void A3::initObstacles() {
-	obstacles.push_back(Obstacle(5.0f, 5.0f));
-	obstacles.push_back(Obstacle(2.0f, 0.0f));
+	for (int i = -1; i < 11; i++) {
+		obstacles.push_back(Obstacle(float(i), -1.0f));
+	}
+	for (int j = 0; j < 11; j++) {
+		obstacles.push_back(Obstacle(-1.0f, float(j)));
+		obstacles.push_back(Obstacle(10.0f, float(j)));
+	}
+	for (int k = 0; k < 10; k++) {
+		obstacles.push_back(Obstacle(float(k), 10.0f));
+	}
 
 	vector<vec3> cubeVertices;
 	vector<vec2> cubeUVVertices;
 	for (Obstacle &obstacle : obstacles) {
-		if (!obstacle.destroyed) {
-			float x = obstacle.x;
-			float y = obstacle.y;
-			vec3 cube[] = {
-				// front
-				vec3(x, cube_h, y), vec3(x + cube_h, cube_h, y), vec3(x, cube_h, y + cube_h),
-				vec3(x, cube_h, y + cube_h), vec3(x + cube_h, cube_h, y), vec3(x + cube_h, cube_h, y + cube_h),
-				// back
-				vec3(x, 0, y), vec3(x + cube_h, 0, y), vec3(x, 0, y + cube_h),
-				vec3(x, 0, y + cube_h), vec3(x + cube_h, 0, y), vec3(x + cube_h, 0, y + cube_h),
-				// left
-				vec3(x, cube_h, y), vec3(x, 0, y), vec3(x, 0, y + cube_h),
-				vec3(x, 0, y + cube_h), vec3(x, cube_h, y), vec3(x, cube_h, y + cube_h),
-				// right
-				vec3(x + cube_h, cube_h, y), vec3(x + cube_h, 0, y), vec3(x + cube_h, 0, y + cube_h),
-				vec3(x + cube_h, 0, y + cube_h), vec3(x + cube_h, cube_h, y), vec3(x + cube_h, cube_h, y + cube_h),
-				// top
-				vec3(x, cube_h, y + cube_h), vec3(x, 0, y + cube_h), vec3(x + cube_h, 0, y + cube_h),
-				vec3(x + cube_h, 0, y + cube_h), vec3(x, cube_h, y + cube_h), vec3(x + cube_h, cube_h, y + cube_h),
-				// bottom
-				vec3(x, cube_h, y), vec3(x, 0, y), vec3(x + cube_h, 0, y),
-				vec3(x + cube_h, 0, y), vec3(x, cube_h, y), vec3(x + cube_h, cube_h, y),
-			};
-			cubeVertices.insert(cubeVertices.end(), begin(cube), end(cube));
-			cubeUVVertices.insert(cubeUVVertices.end(), begin(cubeUVs), end(cubeUVs));
-		}
+		float x = obstacle.x;
+		float y = obstacle.y;
+		vec3 cube[] = {
+			// top
+			vec3(x, cube_h, y), vec3(x + cube_h, cube_h, y), vec3(x, cube_h, y + cube_h),
+			vec3(x, cube_h, y + cube_h), vec3(x + cube_h, cube_h, y), vec3(x + cube_h, cube_h, y + cube_h),
+			// back
+			vec3(x, 0, y), vec3(x + cube_h, 0, y), vec3(x, 0, y + cube_h),
+			vec3(x, 0, y + cube_h), vec3(x + cube_h, 0, y), vec3(x + cube_h, 0, y + cube_h),
+			// left
+			vec3(x, cube_h, y), vec3(x, 0, y), vec3(x, 0, y + cube_h),
+			vec3(x, 0, y + cube_h), vec3(x, cube_h, y), vec3(x, cube_h, y + cube_h),
+			// right
+			vec3(x + cube_h, cube_h, y), vec3(x + cube_h, 0, y), vec3(x + cube_h, 0, y + cube_h),
+			vec3(x + cube_h, 0, y + cube_h), vec3(x + cube_h, cube_h, y), vec3(x + cube_h, cube_h, y + cube_h),
+			//front
+			vec3(x, cube_h, y + cube_h), vec3(x + cube_h, cube_h, y + cube_h), vec3(x, 0, y + cube_h),
+			vec3(x, 0, y + cube_h), vec3(x + cube_h, cube_h, y + cube_h), vec3(x + cube_h, 0, y + cube_h),
+			// bottom
+			vec3(x, cube_h, y), vec3(x, 0, y), vec3(x + cube_h, 0, y),
+			vec3(x + cube_h, 0, y), vec3(x, cube_h, y), vec3(x + cube_h, cube_h, y),
+		};
+		cubeVertices.insert(cubeVertices.end(), begin(cube), end(cube));
+		cubeUVVertices.insert(cubeUVVertices.end(), begin(cubeUVs), end(cubeUVs));
 	}
 
 	// Create the vertex array to record buffer assignments.
@@ -436,6 +420,11 @@ void A3::processLuaSceneFile(const std::string & filename) {
 	m_waterNode = std::shared_ptr<SceneNode>(import_lua(waterFileName));
 	if (!m_waterNode) {
 		std::cerr << "Could Not Open " << waterFileName << std::endl;
+	}
+
+	m_blockNode = std::shared_ptr<SceneNode>(import_lua(blockFileName));
+	if (!m_blockNode) {
+		std::cerr << "Could Not Open " << blockFileName << std::endl;
 	}
 }
 
@@ -570,7 +559,7 @@ void A3::mapVboDataToVertexShaderInputLocations()
 	glGenBuffers( 1, &m_water_uv_vbo );
 	glBindBuffer( GL_ARRAY_BUFFER, m_water_uv_vbo );
 	glBufferData( GL_ARRAY_BUFFER, sizeof(vec2) * 36,
-		cubeUVs, GL_STATIC_DRAW );
+		meshCubeUVs, GL_STATIC_DRAW );
 	GLint UVAttrib = m_shader.getAttribLocation( "vertexUV" );
 	glEnableVertexAttribArray( UVAttrib );
 	glVertexAttribPointer( UVAttrib, 2, GL_FLOAT, GL_FALSE, 0, nullptr );
@@ -688,18 +677,28 @@ void A3::uploadCommonSceneUniforms() {
 
 bool A3::checkCollision(Player &p) {
 	for (Obstacle &obstacle : obstacles) {
-		if (!obstacle.destroyed) {
-			// Collision x-axis
-	    bool collisionX = p.x + p.dx + collision_square >= obstacle.x &&
-	        obstacle.x + collision_square >= p.x + p.dx;
-	    // Collision y-axis
-	    bool collisionY = p.y + p.dy + collision_square >= obstacle.y &&
-	        obstacle.y + collision_square >= p.y + p.dy;
-	    // Collision only if on both axes
-	    if (collisionX && collisionY) {
-	    	return true;
-	    }
-		}
+		// Collision x-axis
+    bool collisionX = p.x + p.dx + collision_square >= obstacle.x &&
+        obstacle.x + collision_square >= p.x + p.dx;
+    // Collision y-axis
+    bool collisionY = p.y + p.dy + collision_square >= obstacle.y &&
+        obstacle.y + collision_square >= p.y + p.dy;
+    // Collision only if on both axes
+    if (collisionX && collisionY) {
+    	return true;
+    }
+	}
+	for (Block &block : blocks) {
+		// Collision x-axis
+    bool collisionX = p.x + p.dx + collision_square >= block.x &&
+        block.x + collision_square >= p.x + p.dx;
+    // Collision y-axis
+    bool collisionY = p.y + p.dy + collision_square >= block.y &&
+        block.y + collision_square >= p.y + p.dy;
+    // Collision only if on both axes
+    if (collisionX && collisionY) {
+    	return true;
+    }
 	}
 	return false;
 }
@@ -748,7 +747,7 @@ void A3::popAnotherBalloon(WaterDamage &w, vector<WaterBalloon> &wbs, int positi
 		  	p.x + collision_square >= w.x;
 		  if (waterRightX) {
 		  	w.right_blocked = true;
-		  	waterDamages.push_back(WaterDamage(p.x, p.y, water_lifetime, p.power));
+		  	waterDamages.push_back(WaterDamage(p.x, p.y, water_lifetime, p.power, p.source));
 		  	engine->play2D(getAssetFilePath("splat.wav").c_str());
 		  	wbs.erase(wbs.begin() + position);
 		  }
@@ -760,7 +759,7 @@ void A3::popAnotherBalloon(WaterDamage &w, vector<WaterBalloon> &wbs, int positi
 		  	p.x + collision_square >= w.x + water_speed - w.curr_power;
 		  if (waterLeftX) {
 		  	w.left_blocked = true;
-		  	waterDamages.push_back(WaterDamage(p.x, p.y, water_lifetime, p.power));
+		  	waterDamages.push_back(WaterDamage(p.x, p.y, water_lifetime, p.power, p.source));
 		  	engine->play2D(getAssetFilePath("splat.wav").c_str());
 		  	wbs.erase(wbs.begin() + position);
 		  }
@@ -772,7 +771,7 @@ void A3::popAnotherBalloon(WaterDamage &w, vector<WaterBalloon> &wbs, int positi
 		  	p.y + collision_square >= w.y;
 		  if (waterDownY) {
 		  	w.down_blocked = true;
-		  	waterDamages.push_back(WaterDamage(p.x, p.y, water_lifetime, p.power));
+		  	waterDamages.push_back(WaterDamage(p.x, p.y, water_lifetime, p.power, p.source));
 		  	engine->play2D(getAssetFilePath("splat.wav").c_str());
 		  	wbs.erase(wbs.begin() + position);
 		  }
@@ -784,7 +783,7 @@ void A3::popAnotherBalloon(WaterDamage &w, vector<WaterBalloon> &wbs, int positi
 		  	p.y + collision_square >= w.y + water_speed - w.curr_power;
 		  if (waterUpY) {
 		  	w.up_blocked = true;
-		  	waterDamages.push_back(WaterDamage(p.x, p.y, water_lifetime, p.power));
+		  	waterDamages.push_back(WaterDamage(p.x, p.y, water_lifetime, p.power, p.source));
 		  	engine->play2D(getAssetFilePath("splat.wav").c_str());
 		  	wbs.erase(wbs.begin() + position);
 		  }
@@ -793,42 +792,48 @@ void A3::popAnotherBalloon(WaterDamage &w, vector<WaterBalloon> &wbs, int positi
 	}
 }
 
+void A3::powerPlayer(Block &b, int source) {
+	if (b.special == 0) {
+		return;
+	}
+	Player &p = source == 1 ? player1 : player2;
+	int s = b.special;
+	// 0: no effect, 1: speed up, 2: balloon up, 3: power up
+	if (s == 1) {
+		p.speedUp();
+	} else if (s == 2) {
+		p.balloonUp();
+	} else if (s == 3) {
+		p.powerUp();
+	}
+}
+
 void A3::waterCollision(WaterDamage &w) {
 	// water stops at obstacle
 	for (Obstacle &obstacle: obstacles) {
-		if (!obstacle.destroyed) {
-			if (!w.right_blocked) {
-				bool collisionX = w.x + w.curr_power >= obstacle.x &&
-	        	obstacle.x + collision_square >= w.x;
-		    bool collisionY = w.y >= obstacle.y && obstacle.y + collision_square >= w.y;
-		    if (collisionX && collisionY) {
-		    	w.right_blocked = true;
-		    }
-			}
-			if (!w.left_blocked) {
-				bool collisionX = w.x + collision_square >= obstacle.x &&
-	        	obstacle.x + collision_square >= w.x + water_speed - w.curr_power;
-		    bool collisionY = w.y >= obstacle.y && obstacle.y + collision_square >= w.y;
-		    if (collisionX && collisionY) {
-		    	w.left_blocked = true;
-		    }
-			}
-			if (!w.down_blocked) {
-				bool collisionX = w.x >= obstacle.x && obstacle.x + collision_square >= w.x;
-		    bool collisionY = w.y + w.curr_power >= obstacle.y && 
-		    		obstacle.y + collision_square >= w.y;
-		    if (collisionX && collisionY) {
-		    	w.down_blocked = true;
-		    }
-			}
-			if (!w.up_blocked) {
-				bool collisionX = w.x >= obstacle.x && obstacle.x + collision_square >= w.x;
-		    bool collisionY = w.y + collision_square >= obstacle.y && 
-		    		obstacle.y + collision_square >= w.y + water_speed - w.curr_power;
-		    if (collisionX && collisionY) {
-		    	w.up_blocked = true;
-		    }
-			}
+		if (!w.right_blocked && w.y == obstacle.y && obstacle.x > w.x) {
+			bool collisionX = w.x + w.curr_right_power >= obstacle.x;
+	    if (collisionX) {
+	    	w.right_blocked = true;
+	    }
+		}
+		if (!w.left_blocked && w.y == obstacle.y && obstacle.x < w.x) {
+			bool collisionX = obstacle.x >= w.x - w.curr_left_power;
+	    if (collisionX) {
+	    	w.left_blocked = true;
+	    }
+		}
+		if (!w.down_blocked && w.x == obstacle.x && obstacle.y > w.y) {
+	    bool collisionY = w.y + w.curr_down_power >= obstacle.y;
+	    if (collisionY) {
+	    	w.down_blocked = true;
+	    }
+		}
+		if (!w.up_blocked && w.x == obstacle.x && obstacle.y < w.y) {
+	    bool collisionY = obstacle.y >= w.y - w.curr_up_power;
+	    if (collisionY) {
+	    	w.up_blocked = true;
+	    }
 		}
 	}
 
@@ -840,12 +845,48 @@ void A3::waterCollision(WaterDamage &w) {
 		popAnotherBalloon(w, p2_waterBalloons, j);
 	}
 
+	for (int i = 0; i < blocks.size(); i++) {
+		Block block = blocks.at(i);
+		if (!w.right_blocked && w.y == block.y && block.x > w.x) {
+			bool collisionX = w.x + w.curr_right_power >= block.x && w.curr_right_power < w.power;
+	    if (collisionX) {
+	    	w.right_blocked = true;
+	    	powerPlayer(block, w.source);
+	    	blocks.erase(blocks.begin() + i);
+	    }
+		}
+		if (!w.left_blocked && w.y == block.y && block.x < w.x) {
+			bool collisionX = block.x >= w.x - w.curr_left_power && w.curr_left_power < w.power;
+	    if (collisionX) {
+	    	w.left_blocked = true;
+	    	powerPlayer(block, w.source);
+	    	blocks.erase(blocks.begin() + i);
+	    }
+		}
+		if (!w.down_blocked && w.x == block.x && block.y > w.y) {
+	    bool collisionY = w.y + w.curr_down_power >= block.y && w.curr_down_power < w.power;
+	    if (collisionY) {
+	    	w.down_blocked = true;
+	    	powerPlayer(block, w.source);
+	    	blocks.erase(blocks.begin() + i);
+	    }
+		}
+		if (!w.up_blocked && w.x == block.x && block.y < w.y) {
+	    bool collisionY = block.y >= w.y - w.curr_up_power && w.curr_up_power < w.power;
+	    if (collisionY) {
+	    	w.up_blocked = true;
+	    	powerPlayer(block, w.source);
+	    	blocks.erase(blocks.begin() + i);
+	    }
+		}
+	}
+
 	// check if water damage touches players
 	killPlayer(w, player1);
 	killPlayer(w, player2);
 }
 
-void A3::pushWaterBalloon(vector<WaterBalloon> &wbs, float x, float y, float power) {
+void A3::pushWaterBalloon(vector<WaterBalloon> &wbs, float x, float y, float power, int source) {
 	for (WaterBalloon &balloon : wbs) {
 		if (balloon.x == x && balloon.y == y) {
 			return;
@@ -857,7 +898,7 @@ void A3::pushWaterBalloon(vector<WaterBalloon> &wbs, float x, float y, float pow
 		}
 	}
 	engine->play2D(getAssetFilePath("bounce.wav").c_str());
-	wbs.push_back(WaterBalloon(x, y, balloon_lifetime, power));
+	wbs.push_back(WaterBalloon(x, y, balloon_lifetime, power, source));
 }
 
 // void A3::collide(Player &p, char dir) {
@@ -893,7 +934,7 @@ void A3::appLogic()
 	// decrease water balloon lifetime
 	if (waterBalloons.size() > 0 && waterBalloons.front().lifetime <= 0) {
 		WaterBalloon b = waterBalloons.front();
-		waterDamages.push_back(WaterDamage(b.x, b.y, water_lifetime, b.power));
+		waterDamages.push_back(WaterDamage(b.x, b.y, water_lifetime, b.power, b.source));
 		engine->play2D(getAssetFilePath("splat.wav").c_str());
 		waterBalloons.erase(waterBalloons.begin());
 	}
@@ -903,7 +944,7 @@ void A3::appLogic()
 
 	if (p2_waterBalloons.size() > 0 && p2_waterBalloons.front().lifetime <= 0) {
 		WaterBalloon b = p2_waterBalloons.front();
-		waterDamages.push_back(WaterDamage(b.x, b.y, water_lifetime, b.power));
+		waterDamages.push_back(WaterDamage(b.x, b.y, water_lifetime, b.power, b.source));
 		engine->play2D(getAssetFilePath("splat.wav").c_str());
 		p2_waterBalloons.erase(p2_waterBalloons.begin());
 	}
@@ -989,6 +1030,10 @@ void A3::guiLogic()
 		if (message != "") {
 			ImGui::Text( "%s", message.c_str() );
 		}
+		ImGui::Text( "Player1 Speed: %.1f, Balloon: %i, Power: %i", 
+			player1.speed, player1.balloonNumber, int(player1.power));
+		ImGui::Text( "Player2 Speed: %.1f, Balloon: %i, Power: %i", 
+			player2.speed, player2.balloonNumber, int(player2.power));
 		ImGui::Text( "Framerate: %.1f FPS", ImGui::GetIO().Framerate );
 
 	ImGui::End();
@@ -1227,10 +1272,11 @@ void A3::redo() {
 void A3::draw() {
 	// engine->play2D(getAssetFilePath("bell.wav").c_str());
 	glEnable( GL_DEPTH_TEST );
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	// renderShadows();
 
-	renderGrid();
 	renderFloor();
 	
 	// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1249,6 +1295,10 @@ void A3::draw() {
 
 	for (WaterDamage &w : waterDamages) {
 		renderWater(*m_waterNode, w);
+	}
+
+	for (Block &b : blocks) {
+		renderBlock(*m_blockNode, b);
 	}
 
 	glDisable( GL_DEPTH_TEST );
@@ -1305,22 +1355,31 @@ void A3::renderPlayer2(const SceneNode & node) {
 void A3::renderBalloon(const SceneNode & root, WaterBalloon &b) {
 	// Bind the VAO once here, and reuse for all GeometryNode rendering below.
 	glBindVertexArray(m_vao_meshData);
-	float alpha = (balloon_lifetime - b.lifetime) / float(balloon_lifetime);
-	alpha = alpha < 0.8 ? 0.8 : alpha;
+	drawNodes(&root, b.trans);
+	glBindVertexArray(0);
+	CHECK_GL_ERRORS;
+}
 
+void A3::renderBlock(const SceneNode &root, Block &b) {
+	if (b.special) {
+		glBindTexture(GL_TEXTURE_2D, xmas_cube_texture);
+	} else {
+		glBindTexture(GL_TEXTURE_2D, wood_cube_texture);
+	}
+	glBindVertexArray(m_vao_meshData);
 	m_shader.enable();
-		GLint location = m_shader.getUniformLocation("alpha");
-		glUniform1f( location, alpha);
+		GLint location = m_shader.getUniformLocation("useTexture");
+		glUniform1i( location, 1 );
 	m_shader.disable();
 
 	drawNodes(&root, b.trans);
 
 	m_shader.enable();
-		location = m_shader.getUniformLocation("alpha");
-		glUniform1f( location, 1.0 );
+		location = m_shader.getUniformLocation("useTexture");
+		glUniform1i( location, 0 );
 	m_shader.disable();
-
 	glBindVertexArray(0);
+	glBindTexture(GL_TEXTURE_2D, 0);
 	CHECK_GL_ERRORS;
 }
 
@@ -1332,7 +1391,7 @@ void A3::renderWater(const SceneNode &root, WaterDamage &w) {
 		GLint location = m_shader.getUniformLocation("useTexture");
 		glUniform1i( location, 1 );
 		location = m_shader.getUniformLocation("alpha");
-		glUniform1f( location, 0.5 );
+		glUniform1f( location, 0.6 );
 	m_shader.disable();
 	CHECK_GL_ERRORS;
 
@@ -1390,27 +1449,6 @@ void A3::renderArcCircle() {
 		glUniformMatrix4fv( m_location, 1, GL_FALSE, value_ptr( M ) );
 		glDrawArrays( GL_LINE_LOOP, 0, CIRCLE_PTS );
 	m_shader_arcCircle.disable();
-
-	glBindVertexArray(0);
-	CHECK_GL_ERRORS;
-}
-
-//----------------------------------------------------------------------------------------
-// Draw the grid
-void A3::renderGrid() {
-	glBindVertexArray(m_grid_vao);
-
-	m_shader.enable();
-		//-- Set ModelView matrix:
-		GLint location = m_shader.getUniformLocation("ModelView");
-		mat4 modelView = m_view;
-		glUniformMatrix4fv(location, 1, GL_FALSE, value_ptr(modelView));
-
-		location = m_shader.getUniformLocation("material.kd");
-		vec3 col = vec3(1.0, 1.0, 1.0);
-		glUniform3fv(location, 1, value_ptr(col));
-		glDrawArrays(GL_LINES, 0, (3+DIM)*4);
-	m_shader.disable();
 
 	glBindVertexArray(0);
 	CHECK_GL_ERRORS;
@@ -1673,7 +1711,7 @@ bool A3::keyInputEvent (
 		}
 		if(key == GLFW_KEY_SPACE) {
 			if (waterBalloons.size() < player1.balloonNumber) {
-				pushWaterBalloon(waterBalloons, round(player1.x), round(player1.y), player1.power);
+				pushWaterBalloon(waterBalloons, round(player1.x), round(player1.y), player1.power, 1);
 			}
 		}
 		if( key == GLFW_KEY_A ) {
@@ -1694,7 +1732,7 @@ bool A3::keyInputEvent (
 		}
 		if(key == GLFW_KEY_LEFT_SHIFT) {
 			if (p2_waterBalloons.size() < player2.balloonNumber) {
-				pushWaterBalloon(p2_waterBalloons, round(player2.x), round(player2.y), player2.power);
+				pushWaterBalloon(p2_waterBalloons, round(player2.x), round(player2.y), player2.power, 2);
 			}
 		}
 		eventHandled = true;

@@ -38,8 +38,8 @@ Player::Player(float pos_x, float pos_y)
     dy(0.0f),
     dead(false),
     deadTime(0),
-    balloonNumber(4),
-    power(5.0f),
+    balloonNumber(1),
+    power(3.0f),
     currRot(mat4(1.0f)),
     neckRotation(0.0),
     leftThighRotation(0.0),
@@ -74,6 +74,24 @@ Player::Player(float pos_x, float pos_y)
     Keyframe frame3(0.3, jr3);
     moveAnimation.keyframes.push_back(frame3);
     // cout << "moveAnimation 1st: " << moveAnimation.keyframes.front().timestamp << endl;
+}
+
+void Player::speedUp() {
+    if (speed < 4.0f) {
+        speed += 1.0f;
+    }
+}
+
+void Player::balloonUp() {
+    if (balloonNumber < 6) {
+        balloonNumber++;
+    }
+}
+
+void Player::powerUp() {
+    if (power < 6.0f) {
+        power += 1.0f;
+    }
 }
 
 void Player::setDead() {
@@ -158,15 +176,16 @@ void Player::move(bool hasCollision) {
         }
 
         // move
+        float m_s = 0.1f * speed + 0.7f;
         if (!hasCollision) {
             if (dx != 0.0f && dy != 0.0f) {
-                rootNode->translate(vec3(dx * 0.7071 * speed, 0.0f, dy * 0.7071 * speed));
-                x += dx * 0.7071 * speed;
-                y += dy * 0.7071 * speed;
+                rootNode->translate(vec3(dx * 0.7071 * m_s, 0.0f, dy * 0.7071 * m_s));
+                x += dx * 0.7071 * m_s;
+                y += dy * 0.7071 * m_s;
             } else {
-                rootNode->translate(vec3(dx * speed, 0.0f, dy * speed));
-                x += dx * speed;
-                y += dy * speed;
+                rootNode->translate(vec3(dx * m_s, 0.0f, dy * m_s));
+                x += dx * m_s;
+                y += dy * m_s;
             }
         }
     }

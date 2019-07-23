@@ -11,6 +11,9 @@ class Player {
 public:
     Player(float pos_x, float pos_y);
     void setDead();
+    void speedUp();
+    void balloonUp();
+    void powerUp();
     void move(bool hasCollision);
     glm::mat4 setDirection(int d);
     void removeDirection(int d);

@@ -12,7 +12,8 @@ includeDirList = {
 
 libDirectories = { 
     "../lib",
-    "./irrKlang/bin/macosx-gcc"
+    "./irrKlang/bin/macosx-gcc",
+    "./irrKlang/bin/linux-gcc-64"
 }
 
 
@@ -43,7 +44,8 @@ if os.get() == "linux" then
         "X11",
         "stdc++",
         "dl",
-        "pthread"
+        "pthread",
+        "IrrKlang"
     }
 end
 

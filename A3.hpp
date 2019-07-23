@@ -12,7 +12,7 @@
 #include "Player.hpp"
 #include "Animation.hpp"
 #include "Keyframe.hpp"
-#include "irrklang/include/irrKlang.h"
+#include "irrKlang/include/irrKlang.h"
 
 #include <glm/glm.hpp>
 #include <memory>
@@ -38,15 +38,28 @@ struct JointHistory {
 	}
 };
 
+struct Block {
+	float x;
+	float y;
+	int special; // 0: no effect, 1: speed up, 2: balloon up, 3: power up
+	glm::mat4 trans;
+	Block(float pos_x, float pos_y, int s = 0) {
+		x = pos_x;
+		y = pos_y;
+		special = s;
+		trans = glm::mat4(1.0f);
+		trans[3].x = x;
+		trans[3].z = y;
+	}
+};
+
 struct Obstacle {
 	float x;
 	float y;
-	bool destroyed;
 
 	Obstacle(float pos_x, float pos_y) {
 		x = pos_x;
 		y = pos_y;
-		destroyed = false;
 	}
 };
 
@@ -55,9 +68,11 @@ struct WaterBalloon {
 	float y;
 	float power;
 	int lifetime;
+	int source; // 1: player1, 2: player2
 	glm::mat4 trans;
 
-	WaterBalloon(float pos_x, float pos_y, int t, float p) {
+	WaterBalloon(float pos_x, float pos_y, int t, float p, int s) {
+		source = s;
 		x = pos_x;
 		y = pos_y;
 		lifetime = t;
@@ -77,6 +92,7 @@ struct WaterDamage {
 	float curr_up_power;
 	float curr_down_power;
 	float power;
+	int source; // 1: player1, 2: player2
 	glm::mat4 trans1; // right
 	glm::mat4 trans2; // left
 	glm::mat4 trans3; // down
@@ -87,7 +103,8 @@ struct WaterDamage {
 	bool up_blocked;
 
 	int lifetime;
-	WaterDamage(float pos_x, float pos_y, int t, float p) {
+	WaterDamage(float pos_x, float pos_y, int t, float p, int s) {
+		source = s;
 		x = pos_x;
 		y = pos_y;
 		lifetime = t;
@@ -147,6 +164,7 @@ protected:
 	void initGrid();
 	void initFloor();
 	void initObstacles();
+	void initBlocks();
 	void initShadows();
 	GLuint createTexture(std::string filename);
 	void resetPosition();
@@ -162,7 +180,9 @@ protected:
 	void renderShadows();
 	void renderBalloon(const SceneNode &root, WaterBalloon &b);
 	void renderWater(const SceneNode &root, WaterDamage &w);
+	void renderBlock(const SceneNode &root, Block &b);
 	void drawNodes(const SceneNode *node, glm::mat4 t);
+	void powerPlayer(Block &b, int source);
 	void pickNode();
 	JointNode* bfsJoint(SceneNode * root, unsigned int id);
 	JointNode* bfsJoint(SceneNode * root, std::string name);
@@ -177,8 +197,6 @@ protected:
 
 	LightSource m_light;
 
-	GLuint m_grid_vao;
-	GLuint m_grid_vbo;
 	GLuint m_floor_vao;
 	GLuint m_floor_vbo;
 	GLuint m_floor_uv_vbo;
@@ -188,7 +206,10 @@ protected:
 	GLuint floor_texture;
 	GLuint obstacle_texture;
 	GLuint water_texture;
+	GLuint wood_cube_texture;
+	GLuint xmas_cube_texture;
 	std::vector<Obstacle> obstacles;
+	std::vector<Block> blocks;
 	ShaderProgram m_tex_shader;
 
 	// shadow mapping
@@ -220,11 +241,12 @@ protected:
 
 	// water balloon
 	GLuint m_water_uv_vbo;
-	void pushWaterBalloon(std::vector<WaterBalloon> &wbs, float x, float y, float power);
+	void pushWaterBalloon(std::vector<WaterBalloon> &wbs, float x, float y, float power, int source);
 	void popAnotherBalloon(WaterDamage &w, std::vector<WaterBalloon> &wbs, int position);
 	void waterCollision(WaterDamage &w);
 	std::shared_ptr<SceneNode> m_balloonNode;
 	std::shared_ptr<SceneNode> m_waterNode;
+	std::shared_ptr<SceneNode> m_blockNode;
 	std::vector<WaterBalloon> waterBalloons;
 	std::vector<WaterBalloon> p2_waterBalloons;
 	std::vector<WaterDamage> waterDamages;
