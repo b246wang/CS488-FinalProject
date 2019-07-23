@@ -83,6 +83,8 @@ A3::A3(const std::string & luaSceneFile)
 	  m_vbo_arcCircle(0),
 	  m_floor_vao(0),
 	  m_floor_vbo(0),
+	  m_bg_vao(0),
+	  m_bg_vbo(0),
 	  player1(0.0f, 0.0f),
 	  player2(9.0f, 9.0f)
 {
@@ -212,9 +214,11 @@ void A3::init()
 
 	initVar();
 	initFloor();
+	initBackground();
 	initObstacles();
 	initBlocks();
 
+	bg_texture = createTexture(getAssetFilePath("xmas_board.png"));
 	floor_texture = createTexture(getAssetFilePath("wood_floor.png"));
 	obstacle_texture = createTexture(getAssetFilePath("tree_cube.png"));
 	water_texture = createTexture(getAssetFilePath("water_tex.png"));
@@ -270,6 +274,59 @@ void A3::initFloor()
 	glBindBuffer( GL_ARRAY_BUFFER, m_floor_uv_vbo );
 	glBufferData( GL_ARRAY_BUFFER, sizeof(floorUVVertices),
 		floorUVVertices, GL_STATIC_DRAW );
+
+	// Specify the means of extracting the position values properly.
+	GLint UVAttrib = m_tex_shader.getAttribLocation( "vertexUV" );
+	glEnableVertexAttribArray( UVAttrib );
+	glVertexAttribPointer( UVAttrib, 2, GL_FLOAT, GL_FALSE, 0, nullptr );
+
+	// Reset state to prevent rogue code from messing with *my* 
+	// stuff!
+	glBindVertexArray( 0 );
+	glBindBuffer( GL_ARRAY_BUFFER, 0 );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
+
+	CHECK_GL_ERRORS;
+}
+
+void A3::initBackground()
+{
+	float height = -0.5f;
+	float height_bottom = -9.0f;
+	float left = -8.5f;
+	float right = 18.5f;
+	float top = -6.5f;
+	float bottom = 11.5f;
+	vec3 bgVertices[] = {
+		vec3(left, height, top), vec3(right, height, top), vec3(left, height_bottom, bottom),
+		vec3(left, height_bottom, bottom), vec3(right, height, top), vec3(right, height_bottom, bottom)
+	};
+
+	vec2 bgUVVertices[] = {
+		vec2(0.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f),
+		vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 1.0f)
+	};
+
+	// Create the vertex array to record buffer assignments.
+	glGenVertexArrays( 1, &m_bg_vao );
+	glBindVertexArray( m_bg_vao );
+
+	// Create the floor vertex buffer
+	glGenBuffers( 1, &m_bg_vbo );
+	glBindBuffer( GL_ARRAY_BUFFER, m_bg_vbo );
+	glBufferData( GL_ARRAY_BUFFER, sizeof(bgVertices),
+		bgVertices, GL_STATIC_DRAW );
+
+	// Specify the means of extracting the position values properly.
+	GLint posAttrib = m_tex_shader.getAttribLocation( "position" );
+	glEnableVertexAttribArray( posAttrib );
+	glVertexAttribPointer( posAttrib, 3, GL_FLOAT, GL_FALSE, 0, nullptr );
+
+	// Create the bg uv coord buffer
+	glGenBuffers( 1, &m_bg_uv_vbo );
+	glBindBuffer( GL_ARRAY_BUFFER, m_bg_uv_vbo );
+	glBufferData( GL_ARRAY_BUFFER, sizeof(bgUVVertices),
+		bgUVVertices, GL_STATIC_DRAW );
 
 	// Specify the means of extracting the position values properly.
 	GLint UVAttrib = m_tex_shader.getAttribLocation( "vertexUV" );
@@ -702,6 +759,7 @@ void A3::uploadCommonSceneUniforms() {
 }
 
 bool A3::checkCollision(Player &p) {
+	return false;
 	for (Obstacle &obstacle : obstacles) {
 		// Collision x-axis
     bool collisionX = p.x + p.dx + collision_square >= obstacle.x &&
@@ -1304,6 +1362,7 @@ void A3::draw() {
 	// renderShadows();
 
 	renderFloor();
+	renderBackground();
 	
 	// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	// glBindTexture(GL_TEXTURE_2D, shadowTexture);
@@ -1488,6 +1547,23 @@ void A3::renderArcCircle() {
 void A3::renderFloor() {
 	glBindTexture(GL_TEXTURE_2D, floor_texture);
 	glBindVertexArray(m_floor_vao);
+
+	m_tex_shader.enable();
+		//-- Set ModelView matrix:
+		GLint location = m_tex_shader.getUniformLocation("PVM");
+		mat4 PVM = m_perpsective * m_view;
+		glUniformMatrix4fv(location, 1, GL_FALSE, value_ptr(PVM));
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+	m_tex_shader.disable();
+
+	glBindVertexArray(0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	CHECK_GL_ERRORS;
+}
+
+void A3::renderBackground() {
+	glBindTexture(GL_TEXTURE_2D, bg_texture);
+	glBindVertexArray(m_bg_vao);
 
 	m_tex_shader.enable();
 		//-- Set ModelView matrix:

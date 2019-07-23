@@ -163,6 +163,7 @@ protected:
 	void initVar();
 	void initGrid();
 	void initFloor();
+	void initBackground();
 	void initObstacles();
 	void initBlocks();
 	void initShadows();
@@ -176,6 +177,7 @@ protected:
 	void renderArcCircle();
 	void renderGrid();
 	void renderFloor();
+	void renderBackground();
 	void renderObstacles();
 	void renderShadows();
 	void renderBalloon(const SceneNode &root, WaterBalloon &b);
@@ -200,10 +202,14 @@ protected:
 	GLuint m_floor_vao;
 	GLuint m_floor_vbo;
 	GLuint m_floor_uv_vbo;
+	GLuint m_bg_vao;
+	GLuint m_bg_vbo;
+	GLuint m_bg_uv_vbo;
 	GLuint m_cube_vao;
 	GLuint m_cube_vbo;
 	GLuint m_cube_uv_vbo;
 	GLuint floor_texture;
+	GLuint bg_texture;
 	GLuint obstacle_texture;
 	GLuint water_texture;
 	GLuint wood_cube_texture;
@@ -213,6 +219,7 @@ protected:
 	std::vector<Obstacle> obstacles;
 	std::vector<Block> blocks;
 	ShaderProgram m_tex_shader;
+	ShaderProgram m_tex2_shader;
 
 	// shadow mapping
 	glm::mat4 lightSpaceMatrix;
