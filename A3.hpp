@@ -208,6 +208,8 @@ protected:
 	GLuint water_texture;
 	GLuint wood_cube_texture;
 	GLuint xmas_cube_texture;
+	GLuint snow_cube_texture;
+	GLuint gold_cube_texture;
 	std::vector<Obstacle> obstacles;
 	std::vector<Block> blocks;
 	ShaderProgram m_tex_shader;

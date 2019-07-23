@@ -220,6 +220,8 @@ void A3::init()
 	water_texture = createTexture(getAssetFilePath("water_tex.png"));
 	wood_cube_texture = createTexture(getAssetFilePath("wood_cube.png"));
 	xmas_cube_texture = createTexture(getAssetFilePath("chrix_cube.png"));
+	snow_cube_texture = createTexture(getAssetFilePath("snow_cube.png"));
+	gold_cube_texture = createTexture(getAssetFilePath("gold_cube.png"));
 
 	initPerspectiveMatrix();
 
@@ -287,7 +289,31 @@ void A3::initBlocks() {
 	for (int i = 1; i < 9; i++) {
 		for (int j = 1; j < 9; j++) {
 			if (i == j || i + j == 9) {
-				blocks.push_back(Block(float(i), float(j), 1));
+				if (i == 1 || i == 8) {
+					blocks.push_back(Block(float(i), float(j), 1));
+				} else if (i == 2 || i == 7) {
+					blocks.push_back(Block(float(i), float(j), 3));
+				} else if (i == 3 || i == 6) {
+					blocks.push_back(Block(float(i), float(j), 2));
+				} else if (i == 4 || i == 5) {
+					blocks.push_back(Block(float(i), float(j), 2));
+				}
+			} else if (i == 4 && j == 1) {
+					blocks.push_back(Block(float(i), float(j), 2));
+			} else if (i == 5 && j == 1) {
+					blocks.push_back(Block(float(i), float(j), 1));
+			} else if (i == 4 && j == 8) {
+					blocks.push_back(Block(float(i), float(j), 1));
+			} else if (i == 5 && j == 8) {
+					blocks.push_back(Block(float(i), float(j), 2));
+			} else if (i == 1 && j == 4) {
+					blocks.push_back(Block(float(i), float(j), 3));
+			} else if (i == 1 && j == 5) {
+					blocks.push_back(Block(float(i), float(j), 1));
+			} else if (i == 8 && j == 4) {
+					blocks.push_back(Block(float(i), float(j), 1));
+			} else if (i == 8 && j == 5) {
+					blocks.push_back(Block(float(i), float(j), 3));
 			} else {
 				blocks.push_back(Block(float(i), float(j)));
 			}
@@ -1361,8 +1387,12 @@ void A3::renderBalloon(const SceneNode & root, WaterBalloon &b) {
 }
 
 void A3::renderBlock(const SceneNode &root, Block &b) {
-	if (b.special) {
+	if (b.special == 1) {
 		glBindTexture(GL_TEXTURE_2D, xmas_cube_texture);
+	} else if (b.special == 2) {
+		glBindTexture(GL_TEXTURE_2D, snow_cube_texture);
+	} else if (b.special == 3) {
+		glBindTexture(GL_TEXTURE_2D, gold_cube_texture);
 	} else {
 		glBindTexture(GL_TEXTURE_2D, wood_cube_texture);
 	}
