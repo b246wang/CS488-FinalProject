@@ -26,7 +26,7 @@ using namespace irrklang;
 static const size_t DIM = 10;
 static const float cube_h = 1.0f;
 static const float floor_height = 0.01f;
-static const float collision_square = 0.92f;
+static const float collision_square = 0.86f;
 static const float water_collision_square = 0.51f;
 static const int balloon_lifetime = 150;
 static const int water_lifetime = 30;
@@ -98,42 +98,13 @@ A3::A3(const std::string & luaSceneFile)
 // Destructor
 A3::~A3() {}
 
-void A3::resetPosition() {
-	m_trans = mat4(1.0f);
-}
-
 void A3::resetRotation() {
 	m_rot = mat4(1.0f);
 }
 
-void A3::resetJoints() {
-	queue<SceneNode *> q;
-	jointStack.resize(1);
-	message = "";
-	stack_idx = 0;
-	q.push(m_rootNode.get());
-
-	while(!q.empty()) {
-		SceneNode * n = q.front();
-		q.pop();
-
-		if (n->m_nodeType == NodeType::JointNode) {
-			JointNode * j = static_cast<JointNode *>(n);
-			j->set_transform(mat4(1.0f));
-			j->m_joint_x.curr = j->m_joint_x.init;
-			j->m_joint_y.curr = j->m_joint_y.init;
-		}
-
-		for (SceneNode * child : n->children) {
-			q.push(child);
-		}
-	}
-}
 
 void A3::resetAll() {
-	resetPosition();
 	resetRotation();
-	resetJoints();
 }
 
 void A3::initVar()
@@ -161,8 +132,6 @@ void A3::initVar()
 	keySActive = false;
 	keyDActive = false;
 	keyWActive = false;
-
-	do_picking = false;
 	mouseLeftActive = false;
 	mouseMiddleActive = false;
 	mouseRightActive = false;
@@ -171,7 +140,6 @@ void A3::initVar()
 	vector<JointHistory> dummy;
 	jointStack.push_back(dummy);
 	message = "";
-	resetPosition();
 	resetRotation();
 }
 
@@ -735,26 +703,21 @@ void A3::uploadCommonSceneUniforms() {
 		glUniformMatrix4fv(location, 1, GL_FALSE, value_ptr(m_perpsective));
 		CHECK_GL_ERRORS;
 
-		// location = m_shader.getUniformLocation("picking");
-		// glUniform1i( location, do_picking ? 1 : 0 );
+		//-- Set LightSource uniform for the scene:
+		{
+			location = m_shader.getUniformLocation("light.position");
+			glUniform3fv(location, 1, value_ptr(m_light.position));
+			location = m_shader.getUniformLocation("light.rgbIntensity");
+			glUniform3fv(location, 1, value_ptr(m_light.rgbIntensity));
+			CHECK_GL_ERRORS;
+		}
 
-		if( !do_picking ) {
-			//-- Set LightSource uniform for the scene:
-			{
-				location = m_shader.getUniformLocation("light.position");
-				glUniform3fv(location, 1, value_ptr(m_light.position));
-				location = m_shader.getUniformLocation("light.rgbIntensity");
-				glUniform3fv(location, 1, value_ptr(m_light.rgbIntensity));
-				CHECK_GL_ERRORS;
-			}
-
-			//-- Set background light ambient intensity
-			{
-				location = m_shader.getUniformLocation("ambientIntensity");
-				vec3 ambientIntensity(0.05f);
-				glUniform3fv(location, 1, value_ptr(ambientIntensity));
-				CHECK_GL_ERRORS;
-			}
+		//-- Set background light ambient intensity
+		{
+			location = m_shader.getUniformLocation("ambientIntensity");
+			vec3 ambientIntensity(0.05f);
+			glUniform3fv(location, 1, value_ptr(ambientIntensity));
+			CHECK_GL_ERRORS;
 		}
 	}
 	m_shader.disable();
@@ -1064,9 +1027,62 @@ void A3::guiLogic()
 	}
 
 	static bool firstRun(true);
+	static bool windowSet(false);
 	if (firstRun) {
-		ImGui::SetNextWindowPos(ImVec2(50, 50));
-		firstRun = false;
+		if (!windowSet) {
+			ImGui::SetNextWindowPos(ImVec2(50, 50));
+			windowSet = true;
+		}
+		ImGui::OpenPopup("Game Rules");
+		if (ImGui::BeginPopupModal("Game Rules", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+			ImGui::Text("Defeat your opponent by water damage that pops out from water balloon!");
+			ImGui::Text("Water also destroys boxes. Destroying colored boxes gives you power-up.");
+	    ImGui::Text("Player1:");
+	    ImGui::BulletText("Move with ARROW key");
+	    ImGui::BulletText("Set water balloon with SPACE key");
+
+	    ImGui::Text("Player2:");
+	    ImGui::BulletText("Move with WASD key");
+	    ImGui::BulletText("Set water balloon with LEFT_SHIFT key");
+
+	    if (ImGui::Button("Gotcha")) {
+	    	firstRun = false;
+	    	ImGui::CloseCurrentPopup();
+	    }
+	    ImGui::EndPopup();
+	  }
+	}
+
+	if (player1.health == 0 && player2.health == 0) {
+		ImGui::OpenPopup("Tie!");
+		if (ImGui::BeginPopupModal("Tie!", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+	    ImGui::Text("OMG, you two should buy lottery ticket together.");
+	    if (ImGui::Button("Bye")) {
+	    	glfwSetWindowShouldClose(m_window, GL_TRUE);
+	    	ImGui::CloseCurrentPopup();
+	    }
+	    ImGui::EndPopup();
+	  }
+	} else if (player1.health == 0) {
+		ImGui::OpenPopup("P2_win");
+		if (ImGui::BeginPopupModal("P2_win", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+	    ImGui::Text("Player 2 win!!!");
+	    if (ImGui::Button("Bye")) {
+	    	glfwSetWindowShouldClose(m_window, GL_TRUE);
+	    	ImGui::CloseCurrentPopup();
+	    }
+	    ImGui::EndPopup();
+	  }
+	} else if (player2.health == 0) {
+		ImGui::OpenPopup("P1_win");
+		if (ImGui::BeginPopupModal("P1_win", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+	    ImGui::Text("Player 1 win!!!");
+	    if (ImGui::Button("Bye")) {
+	    	glfwSetWindowShouldClose(m_window, GL_TRUE);
+	    	ImGui::CloseCurrentPopup();
+	    }
+	    ImGui::EndPopup();
+	  }
 	}
 
 	static bool showDebugWindow(true);
@@ -1080,9 +1096,9 @@ void A3::guiLogic()
 		// Add more gui elements here here ...
 		if (ImGui::BeginMainMenuBar()) {
 			if (ImGui::BeginMenu("Application")) {
-				if (ImGui::MenuItem("Reset All (A)")) {
-					resetAll();
-				}
+				// if (ImGui::MenuItem("Reset All (A)")) {
+				// 	resetAll();
+				// }
 				if (ImGui::MenuItem("Quit (Q)")) {
 					glfwSetWindowShouldClose(m_window, GL_TRUE);
 				}
@@ -1115,12 +1131,11 @@ void A3::guiLogic()
 
 //----------------------------------------------------------------------------------------
 // Update mesh specific shader uniforms:
-static void updateShaderUniforms(
+void A3::updateShaderUniforms(
 		const ShaderProgram & shader,
 		const GeometryNode & node,
 		const glm::mat4 & viewMatrix,
-		const glm::mat4 & modalTrans,
-		bool do_picking
+		const glm::mat4 & modalTrans
 ) {
 
 	shader.enable();
@@ -1131,71 +1146,35 @@ static void updateShaderUniforms(
 		glUniformMatrix4fv(location, 1, GL_FALSE, value_ptr(modelView));
 		CHECK_GL_ERRORS;
 
-		if( do_picking ) {
-			unsigned int idx = node.m_nodeId;
-			float r = float(idx&0xff) / 255.0f;
-			float g = float((idx>>8)&0xff) / 255.0f;
-			float b = float((idx>>16)&0xff) / 255.0f;
+		//-- Set NormMatrix:
+		location = shader.getUniformLocation("NormalMatrix");
+		mat3 normalMatrix = glm::transpose(glm::inverse(mat3(modelView)));
+		glUniformMatrix3fv(location, 1, GL_FALSE, value_ptr(normalMatrix));
+		CHECK_GL_ERRORS;
 
-			location = shader.getUniformLocation("material.kd");
-			glUniform3f( location, r, g, b );
-			CHECK_GL_ERRORS;
-		} else {
-			//-- Set NormMatrix:
-			location = shader.getUniformLocation("NormalMatrix");
-			mat3 normalMatrix = glm::transpose(glm::inverse(mat3(modelView)));
-			glUniformMatrix3fv(location, 1, GL_FALSE, value_ptr(normalMatrix));
-			CHECK_GL_ERRORS;
-
-			if (node.isSelected) {
-				//-- Set Material values:
-				location = shader.getUniformLocation("material.kd");
-				vec3 col = vec3( 1.0, 1.0, 0.0 );
-				glUniform3fv(location, 1, value_ptr(col));
-				CHECK_GL_ERRORS;
-			} else {
-				//-- Set Material values:
-				location = shader.getUniformLocation("material.kd");
-				vec3 kd = node.material.kd;
-				glUniform3fv(location, 1, value_ptr(kd));
-				CHECK_GL_ERRORS;
-				location = shader.getUniformLocation("material.ks");
-				vec3 ks = node.material.ks;
-				glUniform3fv(location, 1, value_ptr(ks));
-				CHECK_GL_ERRORS;
-				location = shader.getUniformLocation("material.shininess");
-				glUniform1f(location, node.material.shininess);
-				CHECK_GL_ERRORS;
-			}
+		//-- Set Material values:
+		location = shader.getUniformLocation("material.kd");
+		vec3 kd = node.material.kd;
+		if (player1.damaged) {
+			kd = vec3(1, 0, 0);
+			player1.damaged = false;
 		}
-
+		if (player2.damaged) {
+			kd = vec3(1, 0, 0);
+			player2.damaged = false;
+		}
+		glUniform3fv(location, 1, value_ptr(kd));
+		CHECK_GL_ERRORS;
+		location = shader.getUniformLocation("material.ks");
+		vec3 ks = node.material.ks;
+		glUniform3fv(location, 1, value_ptr(ks));
+		CHECK_GL_ERRORS;
+		location = shader.getUniformLocation("material.shininess");
+		glUniform1f(location, node.material.shininess);
+		CHECK_GL_ERRORS;
 	}
 	shader.disable();
 
-}
-
-JointNode* A3::bfsJoint(SceneNode * root, unsigned int id) {
-	queue<SceneNode *> q;
-	q.push(root);
-
-	while(!q.empty()) {
-		SceneNode * n = q.front();
-		q.pop();
-		
-		for (SceneNode * child : n->children) {
-			if (child->m_nodeId == id) {
-				if (n->m_nodeType == NodeType::JointNode) {
-					child->isSelected = !child->isSelected;
-					return static_cast<JointNode *>(n);
-				} else {
-					return NULL;
-				}
-			} else {
-				q.push(child);
-			}
-		}
-	}
-	return NULL;
 }
 
 JointNode* A3::bfsJoint(SceneNode * root, string name) {
@@ -1221,50 +1200,11 @@ JointNode* A3::bfsJoint(SceneNode * root, string name) {
 	return NULL;
 }
 
-void A3::pickNode() {
-	double xpos, ypos;
-	glfwGetCursorPos( m_window, &xpos, &ypos );
-
-	do_picking = true;
-
-	uploadCommonSceneUniforms();
-	glClearColor(1.0, 1.0, 1.0, 1.0 );
-	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-	glClearColor(0.85, 0.85, 0.85, 1.0);
-
-	draw();
-	CHECK_GL_ERRORS;
-
-	xpos *= double(m_framebufferWidth) / double(m_windowWidth);
-	ypos = m_windowHeight - ypos;
-	ypos *= double(m_framebufferHeight) / double(m_windowHeight);
-
-	GLubyte buffer[ 4 ] = { 0, 0, 0, 0 };
-	glReadBuffer( GL_BACK );
-	glReadPixels( int(xpos), int(ypos), 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer );
-	CHECK_GL_ERRORS;
-
-	unsigned int what = buffer[0] + (buffer[1] << 8) + (buffer[2] << 16);
-	JointNode * j = bfsJoint(m_rootNode.get(), what);
-
-	if( j != NULL ) {
-		if (selectedJointNodes.find(j) != selectedJointNodes.end()) {
-			selectedJointNodes.erase(j);
-		} else {
-			selectedJointNodes.insert(j);
-		}
-	}
-
-	do_picking = false;
-
-	CHECK_GL_ERRORS;
-}
-
 void A3::drawNodes(const SceneNode *node, mat4 t) {
 	mat4 new_trans = t * node->trans;
 	if (node->m_nodeType == NodeType::GeometryNode) {
 		const GeometryNode * geometryNode = static_cast<const GeometryNode *>(node);
-		updateShaderUniforms(m_shader, *geometryNode, m_view, new_trans, do_picking);
+		updateShaderUniforms(m_shader, *geometryNode, m_view, new_trans);
 
 		// Get the BatchInfo corresponding to the GeometryNode's unique MeshId.
 		BatchInfo batchInfo = m_batchInfoMap[geometryNode->meshId];

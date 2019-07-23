@@ -51,7 +51,8 @@ Player::Player(float pos_x, float pos_y)
     leftThighJoint(NULL),
     rightThighJoint(NULL),
     speed(1.0f),
-    moveAnimation(Animation())
+    moveAnimation(Animation()),
+    damaged(false)
 {
     map<string, double> jr1;
     jr1["neckJoint"] = 40.0;
@@ -95,6 +96,7 @@ void Player::powerUp() {
 }
 
 void Player::setDead() {
+    damaged = true;
     if (health > 0) {
         health--;
     }

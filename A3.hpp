@@ -8,6 +8,7 @@
 #include "cs488-framework/MeshConsolidator.hpp"
 
 #include "SceneNode.hpp"
+#include "GeometryNode.hpp"
 #include "JointNode.hpp"
 #include "Player.hpp"
 #include "Animation.hpp"
@@ -151,6 +152,7 @@ protected:
 	virtual bool keyInputEvent(int key, int action, int mods) override;
 
 	//-- One time initialization methods:
+
 	void processLuaSceneFile(const std::string & filename);
 	void createShaderProgram();
 	void enableVertexShaderInputSlots();
@@ -158,6 +160,12 @@ protected:
 	void mapVboDataToVertexShaderInputLocations();
 	void initViewMatrix();
 	void initLightSources();
+	void updateShaderUniforms(
+		const ShaderProgram & shader,
+		const GeometryNode & node,
+		const glm::mat4 & viewMatrix,
+		const glm::mat4 & modalTrans
+	);
 
 	void initPerspectiveMatrix();
 	void initVar();
@@ -185,8 +193,6 @@ protected:
 	void renderBlock(const SceneNode &root, Block &b);
 	void drawNodes(const SceneNode *node, glm::mat4 t);
 	void powerPlayer(Block &b, int source);
-	void pickNode();
-	JointNode* bfsJoint(SceneNode * root, unsigned int id);
 	JointNode* bfsJoint(SceneNode * root, std::string name);
 
 	irrklang::ISoundEngine* engine;

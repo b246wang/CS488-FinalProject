@@ -1,0 +1,31 @@
+- Compilation
+	- Commands:
+		- premake4 gmake
+		- make
+		- export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./irrKlang/bin/linux-gcc-64
+		- ./A5 Assets/puppet.lua
+	- Completed and tested on lab machine: gl36.student.cs
+
+- Manual
+	- A message will appear above the "Framerate: xx" line if Undo/Redo cannot be performed
+	- rotate() in SceneNode now is a virtual function, overridden in JointNode
+	- Puppet structure: 15 joints (DOFs)
+		- RootNode
+			- torso
+				- neck, neckJoint
+					- head
+						- nose1, nose2, nose3
+						- leftEarNode, leftEarJoint, leftEar
+						- rightEarNode, rightEarJoint, rightEar
+				- leftUpperArmNode, leftUpperArmJoint, leftUpperArm
+					- leftForeArmNode, leftForeArmJoint, leftForeArm
+						- leftHandNode, leftHandJoint, leftHand
+				- rightUpperArmNode, rightUpperArmJoint, rightUpperArm
+					- rightForeArmNode, rightForeArmJoint, rightForeArm
+						- rightHandNode, rightHandJoint, rightHand
+				- leftThighNode, leftThighJoint, leftThigh
+					- leftCalfNode, leftCalfJoint, leftCalf
+						- leftFootNode, leftFootJoint, leftFoot
+				- rightThighNode, rightThighJoint, rightThigh
+					- rightCalfNode, rightCalfJoint, rightCalf
+						- rightFootNode, rightFootJoint, rightFoot

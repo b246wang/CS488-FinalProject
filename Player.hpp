@@ -20,6 +20,7 @@ public:
     void setRootNode(SceneNode * n);
     void setJoints(JointNode * neck, JointNode * l, JointNode * r);
 
+    bool damaged;
     float x;
     float y;
     float dx;
