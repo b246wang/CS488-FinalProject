@@ -1135,7 +1135,8 @@ void A3::updateShaderUniforms(
 		const ShaderProgram & shader,
 		const GeometryNode & node,
 		const glm::mat4 & viewMatrix,
-		const glm::mat4 & modalTrans
+		const glm::mat4 & modalTrans, 
+		int type
 ) {
 
 	shader.enable();
@@ -1155,14 +1156,19 @@ void A3::updateShaderUniforms(
 		//-- Set Material values:
 		location = shader.getUniformLocation("material.kd");
 		vec3 kd = node.material.kd;
-		if (player1.damaged) {
-			kd = vec3(1, 0, 0);
-			player1.damaged = false;
+		if( type == 1){
+			if (player1.damaged) {
+				kd = vec3(1.0, 0.0, 0.0);
+				player1.damaged = false;
+			}
+		} else if(type == 2){
+			if (player2.damaged) {
+				kd = vec3(1.0, 0.0, 0.0);
+				player2.damaged = false;
+			}
 		}
-		if (player2.damaged) {
-			kd = vec3(1, 0, 0);
-			player2.damaged = false;
-		}
+		
+		
 		glUniform3fv(location, 1, value_ptr(kd));
 		CHECK_GL_ERRORS;
 		location = shader.getUniformLocation("material.ks");
@@ -1200,11 +1206,11 @@ JointNode* A3::bfsJoint(SceneNode * root, string name) {
 	return NULL;
 }
 
-void A3::drawNodes(const SceneNode *node, mat4 t) {
+void A3::drawNodes(const SceneNode *node, mat4 t, int type = 0) {// type 1 for palyer 1 type 2 for player 2
 	mat4 new_trans = t * node->trans;
 	if (node->m_nodeType == NodeType::GeometryNode) {
 		const GeometryNode * geometryNode = static_cast<const GeometryNode *>(node);
-		updateShaderUniforms(m_shader, *geometryNode, m_view, new_trans);
+		updateShaderUniforms(m_shader, *geometryNode, m_view, new_trans, type);
 
 		// Get the BatchInfo corresponding to the GeometryNode's unique MeshId.
 		BatchInfo batchInfo = m_batchInfoMap[geometryNode->meshId];
@@ -1216,7 +1222,7 @@ void A3::drawNodes(const SceneNode *node, mat4 t) {
 	}
 
 	for (const SceneNode * n : node->children) {
-		drawNodes(n, new_trans);
+		drawNodes(n, new_trans, type);
 	}
 }
 
@@ -1291,7 +1297,7 @@ void A3::renderSceneGraph(const SceneNode & root) {
 	glBindVertexArray(m_vao_meshData);
 
 	mat4 root_trans = root.trans;
-	drawNodes(&root, root_trans * m_rot * inverse(root_trans));
+	drawNodes(&root, root_trans * m_rot * inverse(root_trans), 1);
 
 	glBindVertexArray(0);
 	CHECK_GL_ERRORS;
@@ -1302,7 +1308,7 @@ void A3::renderPlayer2(const SceneNode & node) {
 	glBindVertexArray(m_vao_meshData);
 
 	mat4 root_trans = node.trans;
-	drawNodes(&node, root_trans * p2_rot * inverse(root_trans));
+	drawNodes(&node, root_trans * p2_rot * inverse(root_trans), 2);
 
 	glBindVertexArray(0);
 	CHECK_GL_ERRORS;

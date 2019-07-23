@@ -164,7 +164,8 @@ protected:
 		const ShaderProgram & shader,
 		const GeometryNode & node,
 		const glm::mat4 & viewMatrix,
-		const glm::mat4 & modalTrans
+		const glm::mat4 & modalTrans,
+		int type
 	);
 
 	void initPerspectiveMatrix();
@@ -191,7 +192,7 @@ protected:
 	void renderBalloon(const SceneNode &root, WaterBalloon &b);
 	void renderWater(const SceneNode &root, WaterDamage &w);
 	void renderBlock(const SceneNode &root, Block &b);
-	void drawNodes(const SceneNode *node, glm::mat4 t);
+	void drawNodes(const SceneNode *node, glm::mat4 t, int type);
 	void powerPlayer(Block &b, int source);
 	JointNode* bfsJoint(SceneNode * root, std::string name);
 
