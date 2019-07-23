@@ -188,9 +188,6 @@ protected:
 	void pickNode();
 	JointNode* bfsJoint(SceneNode * root, unsigned int id);
 	JointNode* bfsJoint(SceneNode * root, std::string name);
-	void pushJointStack();
-	void undo();
-	void redo();
 
 	irrklang::ISoundEngine* engine;
 
@@ -227,6 +224,11 @@ protected:
 	GLuint shadowTexture;
 	ShaderProgram shadow_shader;
 	ShaderProgram depth_shader;
+
+	bool showTexture;
+	bool showAnimation;
+	bool showCollision;
+	float waterTransparency;
 
 	// player1
 	Player player1;

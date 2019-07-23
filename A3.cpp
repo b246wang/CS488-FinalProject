@@ -67,8 +67,6 @@ static bool show_gui = true;
 static const float TranslateFactor = 200.0f;
 static const float JointRotateFactor = 15.0f;
 const size_t CIRCLE_PTS = 48;
-static const string BadUndo = "Cannot Undo. Reached the end of the stack.";
-static const string BadRedo = "Cannot Redo. Reached the end of the stack.";
 
 //----------------------------------------------------------------------------------------
 // Constructor
@@ -86,7 +84,12 @@ A3::A3(const std::string & luaSceneFile)
 	  m_bg_vao(0),
 	  m_bg_vbo(0),
 	  player1(0.0f, 0.0f),
-	  player2(9.0f, 9.0f)
+	  player2(9.0f, 9.0f),
+	  engine(NULL),
+	  showTexture(true),
+	  showAnimation(true),
+	  showCollision(true),
+	  waterTransparency(0.6)
 {
 
 }
@@ -164,7 +167,6 @@ void A3::initVar()
 	mouseMiddleActive = false;
 	mouseRightActive = false;
 	showCircle = true;
-	current_mode = 0;
 	stack_idx = 0;
 	vector<JointHistory> dummy;
 	jointStack.push_back(dummy);
@@ -179,7 +181,7 @@ void A3::initVar()
  */
 void A3::init()
 {
-	engine = createIrrKlangDevice();
+	if (engine == NULL) engine = createIrrKlangDevice();
 	if (!engine) cout << "error starting sound engine...." << endl;
 
 	// Set the background colour.
@@ -759,7 +761,7 @@ void A3::uploadCommonSceneUniforms() {
 }
 
 bool A3::checkCollision(Player &p) {
-	return false;
+	if (!showCollision) return false;
 	for (Obstacle &obstacle : obstacles) {
 		// Collision x-axis
     bool collisionX = p.x + p.dx + collision_square >= obstacle.x &&
@@ -981,6 +983,11 @@ void A3::pushWaterBalloon(vector<WaterBalloon> &wbs, float x, float y, float pow
 			return;
 		}
 	}
+	for (Block &block : blocks) {
+		if (block.x == x && block.y == y) {
+			return;
+		}
+	}
 	engine->play2D(getAssetFilePath("bounce.wav").c_str());
 	wbs.push_back(WaterBalloon(x, y, balloon_lifetime, power, source));
 }
@@ -1006,13 +1013,13 @@ void A3::appLogic()
 
 	// handle character movement
 	if (keyLeftActive || keyRightActive || keyUpActive || keyDownActive) {
-		player1.move(checkCollision(player1));
+		player1.move(checkCollision(player1), showAnimation);
 		// collide(player1, 'x');
 		// collide(player1, 'y');
 	}
 
 	if (keyWActive || keyAActive || keySActive || keyDActive) {
-		player2.move(checkCollision(player2));
+		player2.move(checkCollision(player2), showAnimation);
 	}
 
 	// decrease water balloon lifetime
@@ -1073,15 +1080,6 @@ void A3::guiLogic()
 		// Add more gui elements here here ...
 		if (ImGui::BeginMainMenuBar()) {
 			if (ImGui::BeginMenu("Application")) {
-				if (ImGui::MenuItem("Reset Position (I)")) {
-					resetPosition();
-				}
-				if (ImGui::MenuItem("Reset Orientation (O)")) {
-					resetRotation();
-				}
-				if (ImGui::MenuItem("Reset Joints (S)")) {
-					resetJoints();
-				}
 				if (ImGui::MenuItem("Reset All (A)")) {
 					resetAll();
 				}
@@ -1091,25 +1089,15 @@ void A3::guiLogic()
 				ImGui::EndMenu();
 			}
 
-			if (ImGui::BeginMenu("Edit")) {
-				if (ImGui::MenuItem("Undo (U)")) {
-					undo();
-				}
-				if (ImGui::MenuItem("Redo (R)")) {
-					redo();
-				}
-				ImGui::EndMenu();
-			}
-
 			if (ImGui::BeginMenu("Options")) {
-				ImGui::Checkbox("Circle (C)", &showCircle);
+				ImGui::Checkbox("Texture", &showTexture);
+				ImGui::Checkbox("Animation", &showAnimation);
+				ImGui::Checkbox("Collision", &showCollision);
+				ImGui::SliderFloat("Water Transparency", &waterTransparency, 0.1f, 1.0f, "%.3f");
 				ImGui::EndMenu();
 			}
 			ImGui::EndMainMenuBar();
 		}
-
-		ImGui::RadioButton("Position/Orientation (P)", &current_mode, 0);
-		ImGui::RadioButton("Joints (J)", &current_mode, 1);
 
 		if (message != "") {
 			ImGui::Text( "%s", message.c_str() );
@@ -1118,6 +1106,8 @@ void A3::guiLogic()
 			player1.speed, player1.balloonNumber, int(player1.power));
 		ImGui::Text( "Player2 Speed: %.1f, Balloon: %i, Power: %i", 
 			player2.speed, player2.balloonNumber, int(player2.power));
+		ImGui::Text( "Player1 health: %i", player1.health);
+		ImGui::Text( "Player2 health: %i", player2.health);
 		ImGui::Text( "Framerate: %.1f FPS", ImGui::GetIO().Framerate );
 
 	ImGui::End();
@@ -1290,65 +1280,6 @@ void A3::drawNodes(const SceneNode *node, mat4 t) {
 	}
 }
 
-void A3::pushJointStack() {
-	if (selectedJointNodes.size()) {
-		vector<JointHistory> v;
-		for (JointNode * node : selectedJointNodes) {
-			JointHistory h(node);
-			v.push_back(h);
-		}
-		jointStack.resize(stack_idx + 1);
-		jointStack.push_back(v);
-		stack_idx++;
-		message = "";
-		// cout << "pushed to stack, stack_idx: " << stack_idx << endl;
-	}
-}
-
-void A3::undo() {
-	vector<JointHistory> v;
-	if (stack_idx == 1) {
-		v = jointStack[stack_idx];
-		for (JointHistory h : v) {
-			JointNode * node = h.n;
-			node->m_joint_x.curr = node->m_joint_x.init;
-			node->m_joint_y.curr = node->m_joint_y.init;
-			node->trans = mat4(1.0f);
-		}
-		stack_idx--;
-		message = "";
-	} else if (stack_idx > 1) {
-		v = jointStack[stack_idx-1];
-		for (JointHistory h : v) {
-			JointNode * node = h.n;
-			node->m_joint_x.curr = h.x;
-			node->m_joint_y.curr = h.y;
-			node->trans = h.t;
-		}
-		stack_idx--;
-		message = "";
-	} else {
-		message = BadUndo;
-	}
-	// cout << "undo, stack_idx: " << stack_idx << endl;
-}
-
-void A3::redo() {
-	if (stack_idx + 1 == jointStack.size()) {
-		message = BadRedo;
-		return;
-	}
-	vector<JointHistory> v = jointStack[++stack_idx];
-	for (JointHistory h : v) {
-		JointNode * node = h.n;
-		node->m_joint_x.curr = h.x;
-		node->m_joint_y.curr = h.y;
-		node->trans = h.t;
-	}
-	message = "";
-	// cout << "redo, stack_idx: " << stack_idx << endl;
-}
-
 //----------------------------------------------------------------------------------------
 /*
  * Called once per frame, after guiLogic().
@@ -1446,15 +1377,18 @@ void A3::renderBalloon(const SceneNode & root, WaterBalloon &b) {
 }
 
 void A3::renderBlock(const SceneNode &root, Block &b) {
-	if (b.special == 1) {
-		glBindTexture(GL_TEXTURE_2D, xmas_cube_texture);
-	} else if (b.special == 2) {
-		glBindTexture(GL_TEXTURE_2D, snow_cube_texture);
-	} else if (b.special == 3) {
-		glBindTexture(GL_TEXTURE_2D, gold_cube_texture);
-	} else {
-		glBindTexture(GL_TEXTURE_2D, wood_cube_texture);
+	if (showTexture) {
+		if (b.special == 1) {
+			glBindTexture(GL_TEXTURE_2D, xmas_cube_texture);
+		} else if (b.special == 2) {
+			glBindTexture(GL_TEXTURE_2D, snow_cube_texture);
+		} else if (b.special == 3) {
+			glBindTexture(GL_TEXTURE_2D, gold_cube_texture);
+		} else {
+			glBindTexture(GL_TEXTURE_2D, wood_cube_texture);
+		}
 	}
+	
 	glBindVertexArray(m_vao_meshData);
 	m_shader.enable();
 		GLint location = m_shader.getUniformLocation("useTexture");
@@ -1474,13 +1408,13 @@ void A3::renderBlock(const SceneNode &root, Block &b) {
 
 void A3::renderWater(const SceneNode &root, WaterDamage &w) {
 	// Bind the VAO once here, and reuse for all GeometryNode rendering below.
-	glBindTexture(GL_TEXTURE_2D, water_texture);
+	if (showTexture) glBindTexture(GL_TEXTURE_2D, water_texture);
 	glBindVertexArray(m_vao_meshData);
 	m_shader.enable();
 		GLint location = m_shader.getUniformLocation("useTexture");
 		glUniform1i( location, 1 );
 		location = m_shader.getUniformLocation("alpha");
-		glUniform1f( location, 0.6 );
+		glUniform1f( location, waterTransparency );
 	m_shader.disable();
 	CHECK_GL_ERRORS;
 
@@ -1545,7 +1479,7 @@ void A3::renderArcCircle() {
 
 // Draw the floor
 void A3::renderFloor() {
-	glBindTexture(GL_TEXTURE_2D, floor_texture);
+	if (showTexture) glBindTexture(GL_TEXTURE_2D, floor_texture);
 	glBindVertexArray(m_floor_vao);
 
 	m_tex_shader.enable();
@@ -1562,7 +1496,7 @@ void A3::renderFloor() {
 }
 
 void A3::renderBackground() {
-	glBindTexture(GL_TEXTURE_2D, bg_texture);
+	if (showTexture) glBindTexture(GL_TEXTURE_2D, bg_texture);
 	glBindVertexArray(m_bg_vao);
 
 	m_tex_shader.enable();
@@ -1580,7 +1514,7 @@ void A3::renderBackground() {
 
 void A3::renderObstacles() {
 	// glActiveTexture(GL_TEXTURE0 + 0);
-	glBindTexture(GL_TEXTURE_2D, obstacle_texture);
+	if (showTexture) glBindTexture(GL_TEXTURE_2D, obstacle_texture);
 	// glActiveTexture(GL_TEXTURE0 + 1);
 	// glBindTexture(GL_TEXTURE_2D, shadowTexture);
 	glBindVertexArray(m_cube_vao);
@@ -1636,47 +1570,6 @@ bool A3::mouseMoveEvent (
 	bool eventHandled(false);
 
 	// Fill in with event handling code...
-	if (!ImGui::IsMouseHoveringAnyWindow()) {
-		double d_x = xPos - prev_x;
-		double d_y = yPos - prev_y;
-
-		if (mouseLeftActive) {
-			if (current_mode == 0) {
-				double tx = d_x / TranslateFactor;
-				double ty = d_y / TranslateFactor;
-				mat4 trans(1.0f);
-				trans[3].x = tx;
-				trans[3].y = -ty;
-				m_trans = trans * m_trans;
-			}
-		}
-		if (mouseMiddleActive) {
-			if (current_mode == 0) {
-				double ty = d_y / TranslateFactor;
-				mat4 trans(1.0f);
-				trans[3].z = ty;
-				m_trans = trans * m_trans;
-			} else {
-				double ty = d_y / JointRotateFactor;
-				for (JointNode * node : selectedJointNodes) {
-					node->rotate('x', ty);
-				}
-			}
-		}
-		if (mouseRightActive) {
-			if (current_mode == 1) {
-				double ty = d_y / JointRotateFactor;
-				for (JointNode * node : selectedJointNodes) {
-					node->rotate('y', ty);
-				}
-			}
-		}
-
-		prev_x = xPos;
-		prev_y = yPos;
-		eventHandled = true;
-	}
-
 	return eventHandled;
 }
 
@@ -1695,9 +1588,7 @@ bool A3::mouseButtonInputEvent (
 	if (!ImGui::IsMouseHoveringAnyWindow()) {
 		if (actions == GLFW_PRESS) {
 			if (button == GLFW_MOUSE_BUTTON_LEFT) {
-				if (current_mode == 1) {
-					pickNode();
-				}
+				
 				mouseLeftActive = true;
 			}
 			if (button == GLFW_MOUSE_BUTTON_MIDDLE) {
@@ -1714,16 +1605,10 @@ bool A3::mouseButtonInputEvent (
 				mouseLeftActive = false;
 			}
 			if (button == GLFW_MOUSE_BUTTON_MIDDLE) {
-				if (current_mode == 1) {
-					pushJointStack();
-				}
 				mouseMiddleActive = false;
 			}
 			if (button == GLFW_MOUSE_BUTTON_RIGHT) {
 				mouseRightActive = false;
-				if (current_mode == 1) {
-					pushJointStack();
-				}
 			}
 			eventHandled = true;
 		}
@@ -1774,27 +1659,6 @@ bool A3::keyInputEvent (
 	if( action == GLFW_PRESS ) {
 		if( key == GLFW_KEY_M ) {
 			show_gui = !show_gui;
-		}
-		if( key == GLFW_KEY_P ) {
-			current_mode = 0;
-		}
-		if( key == GLFW_KEY_J ) {
-			current_mode = 1;
-		}
-		if( key == GLFW_KEY_I ) {
-			resetPosition();
-		}
-		if( key == GLFW_KEY_O ) {
-			resetRotation();
-		}
-		if( key == GLFW_KEY_U ) {
-			undo();
-		}
-		if( key == GLFW_KEY_R ) {
-			redo();
-		}
-		if( key == GLFW_KEY_C ) {
-			showCircle = !showCircle;
 		}
 		if (key == GLFW_KEY_Q) {
 			glfwSetWindowShouldClose(m_window, GL_TRUE);

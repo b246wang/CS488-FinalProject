@@ -34,10 +34,10 @@ static const mat4 up_rot = mat4(
 Player::Player(float pos_x, float pos_y)
   : x(pos_x),
     y(pos_y),
+    health(100),
     dx(0.0f),
     dy(0.0f),
     dead(false),
-    deadTime(0),
     balloonNumber(1),
     power(3.0f),
     currRot(mat4(1.0f)),
@@ -95,9 +95,9 @@ void Player::powerUp() {
 }
 
 void Player::setDead() {
-    dead = true;
-    cout << "player dead: " << deadTime << endl;
-    deadTime++;
+    if (health > 0) {
+        health--;
+    }
 }
 
 mat4 Player::setDirection(int d) {
@@ -140,38 +140,40 @@ void Player::setJoints(JointNode * neck, JointNode * l, JointNode * r) {
     rightThighJoint = r;
 }
 
-void Player::move(bool hasCollision) {
+void Player::move(bool hasCollision, bool shouldAnimate) {
     if (dx != 0.0f || dy != 0.0f) {
         // animate
-        if (leftThighDelta < 0) {
-            if (leftThighRotation > -15.0) {
-                leftThighRotation += leftThighDelta;
-                leftThighJoint->rotate('x', leftThighDelta);
+        if (shouldAnimate && !hasCollision) {
+            if (leftThighDelta < 0) {
+                if (leftThighRotation > -15.0) {
+                    leftThighRotation += leftThighDelta;
+                    leftThighJoint->rotate('x', leftThighDelta);
+                } else {
+                    leftThighDelta = rotationDelta;
+                }
             } else {
-                leftThighDelta = rotationDelta;
+                if (leftThighRotation < 15.0) {
+                    leftThighRotation += leftThighDelta;
+                    leftThighJoint->rotate('x', leftThighDelta);
+                } else {
+                    leftThighDelta = -rotationDelta;
+                }
             }
-        } else {
-            if (leftThighRotation < 15.0) {
-                leftThighRotation += leftThighDelta;
-                leftThighJoint->rotate('x', leftThighDelta);
+            
+            if (rightThighDelta > 0) {
+                if (rightThighRotation < 15.0) {
+                    rightThighRotation += rightThighDelta;
+                    rightThighJoint->rotate('x', rightThighDelta);
+                } else {
+                    rightThighDelta = -rotationDelta;
+                }
             } else {
-                leftThighDelta = -rotationDelta;
-            }
-        }
-        
-        if (rightThighDelta > 0) {
-            if (rightThighRotation < 15.0) {
-                rightThighRotation += rightThighDelta;
-                rightThighJoint->rotate('x', rightThighDelta);
-            } else {
-                rightThighDelta = -rotationDelta;
-            }
-        } else {
-            if (rightThighRotation > -15.0) {
-                rightThighRotation += rightThighDelta;
-                rightThighJoint->rotate('x', rightThighDelta);
-            } else {
-                rightThighDelta = rotationDelta;
+                if (rightThighRotation > -15.0) {
+                    rightThighRotation += rightThighDelta;
+                    rightThighJoint->rotate('x', rightThighDelta);
+                } else {
+                    rightThighDelta = rotationDelta;
+                }
             }
         }
 

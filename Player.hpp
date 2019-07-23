@@ -14,7 +14,7 @@ public:
     void speedUp();
     void balloonUp();
     void powerUp();
-    void move(bool hasCollision);
+    void move(bool hasCollision, bool shouldAnimate);
     glm::mat4 setDirection(int d);
     void removeDirection(int d);
     void setRootNode(SceneNode * n);
@@ -28,6 +28,7 @@ public:
     float power;
     bool dead;
     int balloonNumber;
+    int health;
     glm::mat4 currRot;
     
     double neckRotation;
@@ -40,8 +41,4 @@ public:
     JointNode * neckJoint;
     JointNode * leftThighJoint;
     JointNode * rightThighJoint;
-
-private:
-    // The number of death.
-    unsigned int deadTime;
 };
